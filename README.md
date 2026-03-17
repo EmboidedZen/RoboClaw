@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/focus-embodied_ai-black" alt="focus">
 </p>
 
-**RoboClaw** is an open-source co-created project for embodied intelligence assistants.
+**RoboClaw** is an open-source embodied intelligence assistant framework.
 
 ## ✨ What We Want To Build
 
@@ -20,16 +20,19 @@ In the short term, we want to establish a practical paradigm: different embodime
 
 In the long term, we want RoboClaw to do more than execute tasks. It should also participate in training and analysis: judging whether a task is complete, evaluating execution quality, identifying when and why failures happen, helping recover the scene after failure, and analyzing what can be improved in both reasoning and execution. The goal is to support the continuous development of embodied intelligence systems, not just complete a single task once.
 
-This paradigm is intended to progressively connect:
+The immediate objective is narrower and more concrete:
 
-`Goal Understanding -> Planning -> Semantic Skills -> Bridge Layer -> Execution Layer -> Real / Simulated Carriers`
+- let a first-time user talk to RoboClaw
+- let RoboClaw discover the setup and write setup-specific assets into workspace
+- let RoboClaw complete `connect / calibrate / move / debug / reset`
+- keep the framework extensible enough to onboard many open-source embodiments
 
-At the moment, we organize the project into four layers:
+The current embodied stack is organized around:
 
-- `Assistant Layer`: users, sessions, orchestration, tools, and remote collaboration
-- `Embodiment Layer`: embodiment modeling, capability abstraction, calibration, recovery, and training assistance
-- `Execution Layer`: execution interfaces, messaging, services, actions, supervision, and state feedback
-- `Carrier Layer`: simulators, real robots, deployment, and feedback loops
+- `Agent`: dialogue understanding, setup guidance, workspace authoring, procedure selection
+- `Embodied Definition Plane`: schema, robots, sensors, assemblies, deployments, simulators
+- `Embodied Execution Plane`: carriers, transports, adapters, bridges, runtime, procedures
+- `Workspace Assets`: user-specific setup files under `~/.roboclaw/workspace/embodied/`
 
 ## 🌱 Current Status
 
@@ -38,11 +41,26 @@ RoboClaw is still at a very early stage.
 Right now, we are mainly working on:
 
 - building the first end-to-end embodied execution pipeline
-- validating the critical path from semantic interfaces to the execution layer
+- making the workspace-first setup flow actually usable
+- validating the critical path from natural language to ROS2-backed execution
+
+Key documents:
+
+- [Current embodied framework](./embodiment-ros2-architecture.md)
+- [Installation guide](./roboclaw-installation-guide.md)
+- [ROS2 install playbook for RoboClaw](./roboclaw/templates/embodied/guides/ROS2_INSTALL.md)
 
 The direction is clear, and we will continue making the process public as we move forward.
 
 ## 📦 Installation
+
+If you like using AI, you can simply ask your coding assistant:
+
+```text
+Help me install RoboClaw from https://github.com/MINT-SJTU/RoboClaw
+```
+
+If you prefer a manual step-by-step setup, follow the [installation guide](./roboclaw-installation-guide.md).
 
 ### Conda
 
@@ -101,9 +119,9 @@ RoboClaw will support multi-robot scenarios in the future, but that is not the t
 
 - [x] Set up the open-source repository, publish the initial README, and add GitHub-native proposal entry points
 - [ ] Launch GitHub Discussions and start the first logo / icon community vote
-- [ ] Add the first architecture document
+- [x] Add the first embodied framework architecture document
 - [ ] Define unified embodied capabilities and semantic interfaces
-- [ ] Connect the bridge layer, execution layer, and the first simulation platform
+- [ ] Run the first real setup end to end with workspace-generated assets
 - [ ] Support the first real robot platform
 - [ ] Design safe-stop and recovery mechanisms
 - [ ] ...

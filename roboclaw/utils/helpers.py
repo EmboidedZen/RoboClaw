@@ -87,10 +87,20 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         dest.write_text(src.read_text(encoding="utf-8") if src else "", encoding="utf-8")
         added.append(str(dest.relative_to(workspace)))
 
-    for item in tpl.iterdir():
-        if item.name.endswith(".md"):
-            _write(item, workspace / item.name)
-    _write(tpl / "memory" / "MEMORY.md", workspace / "memory" / "MEMORY.md")
+    def _sync_tree(root, rel_prefix: Path = Path()) -> None:
+        for item in root.iterdir():
+            rel = rel_prefix / item.name
+            if item.is_dir():
+                _sync_tree(item, rel)
+                continue
+            if rel.name == "__init__.py":
+                continue
+            if rel == Path("memory/HISTORY.md"):
+                continue
+            _write(item, workspace / rel)
+
+    _sync_tree(tpl)
+
     _write(None, workspace / "memory" / "HISTORY.md")
     (workspace / "skills").mkdir(exist_ok=True)
 
