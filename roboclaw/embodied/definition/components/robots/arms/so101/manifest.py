@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from roboclaw.embodied.definition.components.robots.model import PrimitiveSpec, RobotManifest
 from roboclaw.embodied.definition.foundation.schema import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
+    FeedbackMode,
     HealthFieldSpec,
     HealthSchema,
     HealthLevel,
@@ -25,6 +28,7 @@ SO101_PRIMITIVES = (
         name="move_joint",
         kind=PrimitiveKind.MOTION,
         capability_family=CapabilityFamily.JOINT_MOTION,
+        command_mode=CommandMode.POSITION,
         description="Move one or more joints to target positions.",
         parameters=(
             ParameterSpec(
@@ -37,6 +41,14 @@ SO101_PRIMITIVES = (
             ),
         ),
         tolerance=ToleranceSpec(absolute=0.02, settle_time_s=0.2),
+        action_schema=ActionSchema(
+            id="so101_move_joint_action_v1",
+            command_mode=CommandMode.POSITION,
+            feedback_mode=FeedbackMode.TRAJECTORY_STATUS,
+            parameter_order=("positions",),
+            command_frame="joint_space",
+            command_rate_hz=30.0,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
             timeout_s=5.0,
@@ -47,6 +59,7 @@ SO101_PRIMITIVES = (
         name="move_cartesian_delta",
         kind=PrimitiveKind.MOTION,
         capability_family=CapabilityFamily.CARTESIAN_MOTION,
+        command_mode=CommandMode.CARTESIAN_DELTA,
         description="Move the end effector by a small Cartesian delta in the base frame.",
         parameters=(
             ParameterSpec("dx", "float", "Delta x in meters.", False, ValueUnit.METER, "base_link"),
@@ -54,6 +67,14 @@ SO101_PRIMITIVES = (
             ParameterSpec("dz", "float", "Delta z in meters.", False, ValueUnit.METER, "base_link"),
         ),
         tolerance=ToleranceSpec(absolute=0.005, settle_time_s=0.15),
+        action_schema=ActionSchema(
+            id="so101_move_cartesian_delta_action_v1",
+            command_mode=CommandMode.CARTESIAN_DELTA,
+            feedback_mode=FeedbackMode.TRAJECTORY_STATUS,
+            parameter_order=("dx", "dy", "dz"),
+            command_frame="base_link",
+            command_rate_hz=20.0,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
             timeout_s=3.0,
@@ -64,6 +85,7 @@ SO101_PRIMITIVES = (
         name="spin_wrist",
         kind=PrimitiveKind.MOTION,
         capability_family=CapabilityFamily.JOINT_MOTION,
+        command_mode=CommandMode.POSITION,
         description="Spin the wrist roll joint by a relative angle.",
         parameters=(
             ParameterSpec(
@@ -76,6 +98,14 @@ SO101_PRIMITIVES = (
             ),
         ),
         tolerance=ToleranceSpec(absolute=2.0),
+        action_schema=ActionSchema(
+            id="so101_spin_wrist_action_v1",
+            command_mode=CommandMode.POSITION,
+            feedback_mode=FeedbackMode.TRAJECTORY_STATUS,
+            parameter_order=("delta_deg",),
+            command_frame="wrist_roll_joint",
+            command_rate_hz=20.0,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
             timeout_s=2.0,
@@ -86,7 +116,13 @@ SO101_PRIMITIVES = (
         name="gripper_open",
         kind=PrimitiveKind.END_EFFECTOR,
         capability_family=CapabilityFamily.END_EFFECTOR,
+        command_mode=CommandMode.DISCRETE_TRIGGER,
         description="Open the gripper.",
+        action_schema=ActionSchema(
+            id="so101_gripper_open_action_v1",
+            command_mode=CommandMode.DISCRETE_TRIGGER,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
             timeout_s=2.0,
@@ -97,7 +133,13 @@ SO101_PRIMITIVES = (
         name="gripper_close",
         kind=PrimitiveKind.END_EFFECTOR,
         capability_family=CapabilityFamily.END_EFFECTOR,
+        command_mode=CommandMode.DISCRETE_TRIGGER,
         description="Close the gripper.",
+        action_schema=ActionSchema(
+            id="so101_gripper_close_action_v1",
+            command_mode=CommandMode.DISCRETE_TRIGGER,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
             timeout_s=2.0,
@@ -108,9 +150,16 @@ SO101_PRIMITIVES = (
         name="save_named_pose",
         kind=PrimitiveKind.POSE,
         capability_family=CapabilityFamily.NAMED_POSE,
+        command_mode=CommandMode.DISCRETE_TRIGGER,
         description="Save the current pose under a stable name.",
         parameters=(
             ParameterSpec("name", "str", "Named pose identifier.", True),
+        ),
+        action_schema=ActionSchema(
+            id="so101_save_named_pose_action_v1",
+            command_mode=CommandMode.DISCRETE_TRIGGER,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+            parameter_order=("name",),
         ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.COMMAND_ACCEPTED,
@@ -121,9 +170,17 @@ SO101_PRIMITIVES = (
         name="go_named_pose",
         kind=PrimitiveKind.POSE,
         capability_family=CapabilityFamily.NAMED_POSE,
+        command_mode=CommandMode.WAYPOINT,
         description="Move to a named pose such as home, ready, rest, or work.",
         parameters=(
             ParameterSpec("name", "str", "Named pose identifier.", True),
+        ),
+        action_schema=ActionSchema(
+            id="so101_go_named_pose_action_v1",
+            command_mode=CommandMode.WAYPOINT,
+            feedback_mode=FeedbackMode.TRAJECTORY_STATUS,
+            parameter_order=("name",),
+            command_rate_hz=10.0,
         ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.GOAL_REACHED,
@@ -135,9 +192,16 @@ SO101_PRIMITIVES = (
         name="scan_panorama",
         kind=PrimitiveKind.PERCEPTION,
         capability_family=CapabilityFamily.CAMERA,
+        command_mode=CommandMode.MISSION,
         description="Run a shoulder-pan scan using an attached wrist camera.",
         parameters=(
             ParameterSpec("focus", "str", "What the scan should focus on."),
+        ),
+        action_schema=ActionSchema(
+            id="so101_scan_panorama_action_v1",
+            command_mode=CommandMode.MISSION,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+            parameter_order=("focus",),
         ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.EVENT_CONFIRMED,
@@ -149,7 +213,13 @@ SO101_PRIMITIVES = (
         name="release_torque",
         kind=PrimitiveKind.MAINTENANCE,
         capability_family=CapabilityFamily.TORQUE_CONTROL,
+        command_mode=CommandMode.DISCRETE_TRIGGER,
         description="Release torque on the arm while keeping the session alive.",
+        action_schema=ActionSchema(
+            id="so101_release_torque_action_v1",
+            command_mode=CommandMode.DISCRETE_TRIGGER,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.COMMAND_ACCEPTED,
         ),
@@ -159,7 +229,13 @@ SO101_PRIMITIVES = (
         name="lock_torque",
         kind=PrimitiveKind.MAINTENANCE,
         capability_family=CapabilityFamily.TORQUE_CONTROL,
+        command_mode=CommandMode.DISCRETE_TRIGGER,
         description="Re-enable torque and hold the current pose.",
+        action_schema=ActionSchema(
+            id="so101_lock_torque_action_v1",
+            command_mode=CommandMode.DISCRETE_TRIGGER,
+            feedback_mode=FeedbackMode.EVENT_STATUS,
+        ),
         completion=CompletionSpec(
             semantics=CompletionSemantics.COMMAND_ACCEPTED,
         ),

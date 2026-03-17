@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from roboclaw.embodied.definition.foundation.schema import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSpec,
     HealthSchema,
     ObservationSchema,
@@ -24,11 +26,32 @@ class PrimitiveSpec:
     name: str
     kind: PrimitiveKind
     capability_family: CapabilityFamily
+    command_mode: CommandMode
     description: str
     parameters: tuple[ParameterSpec, ...] = field(default_factory=tuple)
+    action_schema: ActionSchema | None = None
     tolerance: ToleranceSpec | None = None
     completion: CompletionSpec | None = None
     backed_by: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise ValueError("Primitive name cannot be empty.")
+        if not self.description.strip():
+            raise ValueError(f"Primitive '{self.name}' description cannot be empty.")
+        if self.action_schema is not None:
+            if self.action_schema.command_mode != self.command_mode:
+                raise ValueError(
+                    f"Primitive '{self.name}' command_mode '{self.command_mode.value}' does not "
+                    f"match action_schema.command_mode '{self.action_schema.command_mode.value}'."
+                )
+            parameter_names = {param.name for param in self.parameters}
+            unknown_names = set(self.action_schema.parameter_order) - parameter_names
+            if unknown_names:
+                names = ", ".join(sorted(unknown_names))
+                raise ValueError(
+                    f"Primitive '{self.name}' action_schema references unknown parameters: {names}."
+                )
 
 
 @dataclass(frozen=True)

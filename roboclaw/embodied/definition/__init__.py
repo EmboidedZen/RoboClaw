@@ -22,10 +22,13 @@ from roboclaw.embodied.definition.components.sensors import (
     SensorRegistry,
 )
 from roboclaw.embodied.definition.foundation.schema import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
     CarrierKind,
+    FeedbackMode,
     HealthFieldSpec,
     HealthLevel,
     HealthSchema,
@@ -69,10 +72,12 @@ from roboclaw.embodied.definition.systems.simulators import (
 )
 
 __all__ = [
+    "ActionSchema",
     "AssemblyBlueprint",
     "AssemblyManifest",
     "AssemblyRegistry",
     "CapabilityFamily",
+    "CommandMode",
     "CompletionSemantics",
     "CompletionSpec",
     "CameraColorMode",
@@ -86,6 +91,7 @@ __all__ = [
     "DeploymentProfile",
     "DeploymentRegistry",
     "FrameTransform",
+    "FeedbackMode",
     "HealthFieldSpec",
     "HealthLevel",
     "HealthSchema",

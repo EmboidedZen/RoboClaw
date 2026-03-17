@@ -3,6 +3,7 @@ from pathlib import Path
 
 from roboclaw.embodied import (
     ARM_HAND_BRIDGE,
+    CommandMode,
     CancellationMode,
     CompensationTrigger,
     DEFAULT_PROCEDURES,
@@ -267,9 +268,17 @@ def test_runtime_manager_tracks_active_session() -> None:
 def test_so101_action_and_observation_contracts_are_machine_checkable() -> None:
     move_joint = SO101_ROBOT.primitive("move_joint")
     assert move_joint is not None
+    assert move_joint.command_mode == CommandMode.POSITION
     assert move_joint.parameters[0].unit == ValueUnit.RADIAN
+    assert move_joint.action_schema is not None
+    assert move_joint.action_schema.command_mode == CommandMode.POSITION
+    assert move_joint.action_schema.parameter_order == ("positions",)
     assert move_joint.completion is not None
     assert move_joint.completion.semantics == CompletionSemantics.GOAL_REACHED
+
+    scan = SO101_ROBOT.primitive("scan_panorama")
+    assert scan is not None
+    assert scan.command_mode == CommandMode.MISSION
 
     assert SO101_ROBOT.observation_schema.id == "so101_observation_v1"
     assert len(SO101_ROBOT.observation_schema.fields) > 0

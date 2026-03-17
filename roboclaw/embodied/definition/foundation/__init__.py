@@ -1,10 +1,13 @@
 """Foundation-layer exports for embodied definitions."""
 
 from roboclaw.embodied.definition.foundation.schema import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
     CarrierKind,
+    FeedbackMode,
     HealthFieldSpec,
     HealthLevel,
     HealthSchema,
@@ -22,10 +25,13 @@ from roboclaw.embodied.definition.foundation.schema import (
 )
 
 __all__ = [
+    "ActionSchema",
     "CapabilityFamily",
+    "CommandMode",
     "CompletionSemantics",
     "CompletionSpec",
     "CarrierKind",
+    "FeedbackMode",
     "HealthFieldSpec",
     "HealthLevel",
     "HealthSchema",

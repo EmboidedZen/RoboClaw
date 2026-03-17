@@ -1,10 +1,13 @@
 """Shared schema exports."""
 
 from roboclaw.embodied.definition.foundation.schema.model import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
     CarrierKind,
+    FeedbackMode,
     HealthFieldSpec,
     HealthLevel,
     HealthSchema,
@@ -22,10 +25,13 @@ from roboclaw.embodied.definition.foundation.schema.model import (
 )
 
 __all__ = [
+    "ActionSchema",
     "CapabilityFamily",
+    "CommandMode",
     "CompletionSemantics",
     "CompletionSpec",
     "CarrierKind",
+    "FeedbackMode",
     "HealthFieldSpec",
     "HealthLevel",
     "HealthSchema",

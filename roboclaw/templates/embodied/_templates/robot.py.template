@@ -2,9 +2,12 @@
 
 from roboclaw.embodied.definition.components.robots import PrimitiveSpec, RobotManifest
 from roboclaw.embodied.definition.foundation.schema import (
+    ActionSchema,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
+    FeedbackMode,
     HealthFieldSpec,
     HealthSchema,
     ObservationFieldSpec,
@@ -51,6 +54,7 @@ ROBOT = RobotManifest(
             name="move_joint",
             kind=PrimitiveKind.MOTION,
             capability_family=CapabilityFamily.JOINT_MOTION,
+            command_mode=CommandMode.POSITION,
             description="Move one joint-space command.",
             parameters=(
                 ParameterSpec(
@@ -63,6 +67,14 @@ ROBOT = RobotManifest(
                 ),
             ),
             tolerance=ToleranceSpec(absolute=0.02, settle_time_s=0.2),
+            action_schema=ActionSchema(
+                id="<robot_id>_move_joint_action_v1",
+                command_mode=CommandMode.POSITION,
+                feedback_mode=FeedbackMode.TRAJECTORY_STATUS,
+                parameter_order=("positions",),
+                command_frame="joint_space",
+                command_rate_hz=30.0,
+            ),
             completion=CompletionSpec(
                 semantics=CompletionSemantics.GOAL_REACHED,
                 timeout_s=5.0,

@@ -5,10 +5,12 @@ top-level ``roboclaw`` package does not become a flat list of mixed concerns.
 """
 
 from roboclaw.embodied.definition import (
+    ActionSchema,
     AssemblyBlueprint,
     AssemblyManifest,
     AssemblyRegistry,
     CapabilityFamily,
+    CommandMode,
     CompletionSemantics,
     CompletionSpec,
     ControlGroup,
@@ -22,6 +24,7 @@ from roboclaw.embodied.definition import (
     DeploymentProfile,
     DeploymentRegistry,
     FrameTransform,
+    FeedbackMode,
     HealthFieldSpec,
     HealthLevel,
     HealthSchema,
@@ -134,6 +137,7 @@ from roboclaw.embodied.workspace import (
 
 __all__ = [
     "ActionTrace",
+    "ActionSchema",
     "AdapterBinding",
     "AdapterLifecycleContract",
     "AdapterOperation",
@@ -152,6 +156,7 @@ __all__ = [
     "AssemblyManifest",
     "AssemblyRegistry",
     "CapabilityFamily",
+    "CommandMode",
     "CompletionSemantics",
     "CompletionSpec",
     "ControlGroup",
@@ -169,6 +174,7 @@ __all__ = [
     "DeploymentProfile",
     "DeploymentRegistry",
     "FrameTransform",
+    "FeedbackMode",
     "HealthFieldSpec",
     "HealthLevel",
     "HealthSchema",

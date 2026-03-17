@@ -112,6 +112,31 @@ class CompletionSemantics(StrEnum):
     EVENT_CONFIRMED = "event_confirmed"
 
 
+class CommandMode(StrEnum):
+    """Normalized command mode for one action primitive."""
+
+    POSITION = "position"
+    VELOCITY = "velocity"
+    TORQUE = "torque"
+    CARTESIAN_DELTA = "cartesian_delta"
+    CARTESIAN_POSE = "cartesian_pose"
+    WAYPOINT = "waypoint"
+    MISSION = "mission"
+    OFFBOARD = "offboard"
+    DISCRETE_TRIGGER = "discrete_trigger"
+    OTHER = "other"
+
+
+class FeedbackMode(StrEnum):
+    """Expected feedback mode for one action primitive."""
+
+    COMMAND_ACCEPT = "command_accept"
+    STATE_FEEDBACK = "state_feedback"
+    TRAJECTORY_STATUS = "trajectory_status"
+    EVENT_STATUS = "event_status"
+    NONE = "none"
+
+
 class HealthLevel(StrEnum):
     """Normalized health level names."""
 
@@ -138,6 +163,29 @@ class CompletionSpec:
     timeout_s: float | None = None
     success_states: tuple[str, ...] = field(default_factory=lambda: ("succeeded",))
     notes: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ActionSchema:
+    """Machine-checkable action schema for one primitive."""
+
+    id: str
+    command_mode: CommandMode
+    feedback_mode: FeedbackMode = FeedbackMode.STATE_FEEDBACK
+    parameter_order: tuple[str, ...] = field(default_factory=tuple)
+    command_frame: str | None = None
+    command_rate_hz: float | None = None
+    notes: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if not self.id.strip():
+            raise ValueError("Action schema id cannot be empty.")
+        if self.command_frame is not None and not self.command_frame.strip():
+            raise ValueError("Action schema command_frame cannot be empty when specified.")
+        if self.command_rate_hz is not None and self.command_rate_hz <= 0:
+            raise ValueError("Action schema command_rate_hz must be > 0 when specified.")
+        if any(not name.strip() for name in self.parameter_order):
+            raise ValueError("Action schema parameter_order cannot contain empty values.")
 
 
 @dataclass(frozen=True)
