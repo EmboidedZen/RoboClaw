@@ -17,6 +17,8 @@ from roboclaw.embodied.definition import (
 )
 from roboclaw.embodied.execution import (
     AdapterRegistry,
+    BridgeRegistry,
+    DEFAULT_DOMAIN_BRIDGES,
     DEFAULT_PROCEDURES,
     ProcedureRegistry,
 )
@@ -32,6 +34,7 @@ class EmbodiedCatalog:
     robots: RobotRegistry
     sensors: SensorRegistry
     assemblies: AssemblyRegistry
+    bridges: BridgeRegistry
     adapters: AdapterRegistry
     procedures: ProcedureRegistry
     deployments: DeploymentRegistry
@@ -54,6 +57,10 @@ def build_default_catalog() -> EmbodiedCatalog:
 
     assemblies = AssemblyRegistry()
 
+    bridges = BridgeRegistry()
+    for bridge in DEFAULT_DOMAIN_BRIDGES:
+        bridges.register(bridge)
+
     adapters = AdapterRegistry()
 
     procedures = ProcedureRegistry()
@@ -68,6 +75,7 @@ def build_default_catalog() -> EmbodiedCatalog:
         robots=robots,
         sensors=sensors,
         assemblies=assemblies,
+        bridges=bridges,
         adapters=adapters,
         procedures=procedures,
         deployments=deployments,

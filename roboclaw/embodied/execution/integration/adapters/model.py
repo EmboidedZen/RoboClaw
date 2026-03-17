@@ -211,6 +211,7 @@ class AdapterBinding:
     transport: TransportKind
     implementation: str
     supported_targets: tuple[str, ...]
+    bridge_id: str | None = None
     lifecycle: AdapterLifecycleContract = field(default_factory=lambda: DEFAULT_ADAPTER_LIFECYCLE)
     notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -219,3 +220,5 @@ class AdapterBinding:
             raise ValueError(f"Adapter '{self.id}' must support at least one execution target.")
         if len(set(self.supported_targets)) != len(self.supported_targets):
             raise ValueError(f"Adapter '{self.id}' has duplicate supported targets.")
+        if self.bridge_id is not None and not self.bridge_id.strip():
+            raise ValueError(f"Adapter '{self.id}' bridge_id cannot be empty when specified.")

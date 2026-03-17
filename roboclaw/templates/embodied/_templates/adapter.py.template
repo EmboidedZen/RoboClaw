@@ -75,6 +75,7 @@ ADAPTER = AdapterBinding(
     transport=TransportKind.ROS2,
     implementation="<workspace_module_or_entrypoint>",
     supported_targets=("real",),
+    bridge_id="<bridge_id>",
     lifecycle=LIFECYCLE,
     notes=(
         "Workspace-specific adapter binding.",

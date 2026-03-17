@@ -18,6 +18,7 @@ class RobotType(StrEnum):
     ARM = "arm"
     HUMANOID = "humanoid"
     MOBILE_BASE = "mobile_base"
+    DRONE = "drone"
     HAND = "hand"
     DUAL_ARM = "dual_arm"
     OTHER = "other"

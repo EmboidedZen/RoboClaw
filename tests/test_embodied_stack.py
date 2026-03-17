@@ -2,11 +2,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from roboclaw.embodied import (
+    ARM_HAND_BRIDGE,
     DEFAULT_PROCEDURES,
+    DEFAULT_DOMAIN_BRIDGES,
+    DRONE_BRIDGE,
+    HUMANOID_WHOLE_BODY_BRIDGE,
+    MOBILE_BASE_FLEET_BRIDGE,
     RGB_CAMERA,
     RawEvidenceHandle,
+    SIMULATOR_BRIDGE,
     SO101_ROBOT,
     TelemetryEvent,
+    BridgeDomain,
+    BridgeKind,
+    DomainBridgeContract,
     TelemetryKind,
     TelemetryPhase,
     TelemetrySeverity,
@@ -115,9 +124,45 @@ def test_embodied_catalog_contains_reusable_definitions_only() -> None:
     assert catalog.robots.get("so101").robot_type == RobotType.ARM
     assert catalog.sensors.get("rgb_camera").default_topic_name == "image_raw"
     assert catalog.assemblies.list() == ()
+    assert len(catalog.bridges.list()) == len(DEFAULT_DOMAIN_BRIDGES)
     assert catalog.adapters.for_assembly("workspace_so101") == ()
     assert catalog.deployments.for_assembly("workspace_so101") == ()
     assert RGB_CAMERA.supports_intrinsics is True
+
+
+def test_domain_bridge_contract_is_machine_checkable() -> None:
+    catalog = build_default_catalog()
+
+    domains = {bridge.domain for bridge in catalog.bridges.list()}
+    assert BridgeDomain.ARM_HAND in domains
+    assert BridgeDomain.HUMANOID_WHOLE_BODY in domains
+    assert BridgeDomain.MOBILE_BASE_FLEET in domains
+    assert BridgeDomain.DRONE in domains
+    assert BridgeDomain.SIMULATOR in domains
+
+    arm_bridge = catalog.bridges.get(ARM_HAND_BRIDGE.id)
+    assert arm_bridge.kind == BridgeKind.ROS2_CONTROL
+    assert arm_bridge.control_surfaces[0].id == "joint_trajectory"
+    assert arm_bridge.supports_robot_type(RobotType.ARM)
+
+    drone_bridge = catalog.bridges.get(DRONE_BRIDGE.id)
+    assert drone_bridge.supports_robot_type(RobotType.DRONE)
+
+    adapter = AdapterBinding(
+        id="workspace_ros2_adapter_with_bridge",
+        assembly_id="workspace_so101",
+        transport=TransportKind.ROS2,
+        implementation="workspace.adapters.ros2:Adapter",
+        supported_targets=("real",),
+        bridge_id=ARM_HAND_BRIDGE.id,
+    )
+    assert adapter.bridge_id == ARM_HAND_BRIDGE.id
+    assert len(catalog.bridges.for_domain(BridgeDomain.HUMANOID_WHOLE_BODY)) == 1
+    assert len(catalog.bridges.for_domain(BridgeDomain.MOBILE_BASE_FLEET)) == 1
+    assert len(catalog.bridges.for_domain(BridgeDomain.SIMULATOR)) == 1
+    assert isinstance(HUMANOID_WHOLE_BODY_BRIDGE, DomainBridgeContract)
+    assert isinstance(MOBILE_BASE_FLEET_BRIDGE, DomainBridgeContract)
+    assert isinstance(SIMULATOR_BRIDGE, DomainBridgeContract)
 
 
 def test_workspace_blueprint_can_be_composed_into_a_variant() -> None:
