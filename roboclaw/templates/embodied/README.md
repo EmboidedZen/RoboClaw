@@ -1,36 +1,34 @@
 # Workspace Embodied Assets
 
-This directory is where RoboClaw should generate or refine setup-specific embodied files for the active user.
+This directory is for setup-specific embodied assets generated for one user,
+one machine, or one lab environment.
 
-## Purpose
+## Directory Map
 
-- `robots/`: local-only robot manifests that should not live in framework yet
-- `sensors/`: local-only sensor manifests that should not live in framework yet
-- `assemblies/`: robot plus sensor attachments and available execution targets
-- `deployments/`: site-specific connection values, device paths, namespaces, and safety overrides
-- `adapters/`: transport-specific adapter bindings and entrypoints for this setup
-- `simulators/`: world and scenario files for local simulation targets
-- `intake/`: discovery notes captured from user conversation or environment inspection
-- `_templates/`: intentionally minimal scaffolds for generated Python files
+- `intake/`: facts gathered from the user or local inspection
+- `robots/`: local-only robot manifests not ready for framework reuse
+- `sensors/`: local-only sensor manifests not ready for framework reuse
+- `assemblies/`: setup topology and attachments
+- `deployments/`: site-specific ROS2 and device values
+- `adapters/`: setup-specific adapter bindings
+- `simulators/`: world and scenario files for local simulation
+- `_templates/`: minimal scaffolds for generated Python assets
 
-## First-Run Order
+## Normal Generation Order
 
-When RoboClaw is configuring a setup for the first time, it should usually
-touch these directories in this order:
+1. Write or refine `intake/`
+2. Reuse built-in framework definitions where possible
+3. Add `robots/` or `sensors/` only when framework coverage is insufficient
+4. Generate `assemblies/`
+5. Generate `deployments/`
+6. Generate `adapters/`
+7. Generate `simulators/` only when the setup includes simulation
 
-1. `intake/`
-2. `robots/` or `sensors/` only if framework definitions are insufficient
-3. `assemblies/`
-4. `deployments/`
-5. `adapters/`
-6. `simulators/` only when sim targets are part of the setup
+## Rules
 
-## Policy
-
-- Prefer importing reusable framework definitions from `roboclaw.embodied.*`.
-- Do not copy framework manifests into workspace unless the robot or sensor is truly local-only.
-- Update these files instead of touching `roboclaw/embodied/` when the change is specific to one user's equipment.
-- Workspace Python files are discovered by export name. Use `ROBOT`, `SENSOR`, `ASSEMBLY`, `DEPLOYMENT`, `ADAPTER`, `WORLD`, `SCENARIO`, or the plural form of each.
-- Each generated file should include `WORKSPACE_ASSET = WorkspaceAssetContract(...)` with schema version and migration policy so the loader can validate and migrate safely.
-- Treat `_templates/` as fragments to adapt after intake. They should not hardcode one robot class, one camera mount, or one simulator backend.
-- The immediate goal of these files is to make `connect / calibrate / move / debug / reset` work for one concrete setup.
+- Prefer importing reusable definitions from `roboclaw.embodied.*`.
+- Do not copy framework files into workspace unless the setup is truly local-only.
+- Keep setup-specific changes here instead of editing `roboclaw/embodied/`.
+- Export `ROBOT`, `SENSOR`, `ASSEMBLY`, `DEPLOYMENT`, `ADAPTER`, `WORLD`, `SCENARIO`, or the plural form so the workspace loader can discover the file.
+- Include `WORKSPACE_ASSET = WorkspaceAssetContract(...)` in generated Python files so the loader can validate and migrate them.
+- Treat `_templates/` as bare scaffolds. Replace placeholders from intake facts instead of copying them as-is.

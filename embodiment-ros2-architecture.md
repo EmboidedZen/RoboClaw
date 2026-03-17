@@ -303,7 +303,7 @@ roboclaw/embodied/
   告诉 agent workspace-first 的总规则
 - [roboclaw/templates/embodied/README.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/templates/embodied/README.md)
   告诉 agent workspace 目录里各个子目录的用途
-- [roboclaw/skills/embodiment-authoring/SKILL.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/skills/embodiment-authoring/SKILL.md)
+- [roboclaw/skills/embodied-setup/SKILL.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/skills/embodied-setup/SKILL.md)
   告诉 agent 写具身资产时的行为约束
 
 ## 下一步最重要的事情
