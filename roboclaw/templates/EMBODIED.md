@@ -38,6 +38,18 @@ embodied/
 5. If a robot or sensor is local-only and not reusable enough for framework, define it under `embodied/robots` or `embodied/sensors`.
 6. Keep ids stable across later iterations so the same setup can be refined incrementally.
 
+## First-Run Objective
+
+For a first-time user, the immediate success criteria are:
+
+1. create or refine workspace setup assets
+2. load them back into catalog successfully
+3. complete `connect`
+4. complete `calibrate` if supported, or explain why not
+5. complete a small safe `move`
+6. complete `debug`
+7. complete `reset`
+
 ## Ownership Boundary
 
 - Framework examples should not hardcode one user's SO101, Piper, xArm, or humanoid setup.
@@ -45,3 +57,4 @@ embodied/
 - Workspace loader convention: generated Python files should export one of `ROBOT`, `SENSOR`, `ASSEMBLY`, `DEPLOYMENT`, `ADAPTER`, `WORLD`, `SCENARIO`, or their plural forms.
 - Workspace contract metadata: generated Python files should also define `WORKSPACE_ASSET = WorkspaceAssetContract(...)` with `kind`, `schema_version`, `export_convention`, and `migration_policy`.
 - Files under `embodied/_templates/` are intentionally minimal scaffolds, not ready-made arm demos. Replace the placeholders from intake facts instead of copying them verbatim.
+- The current framework path is `catalog -> runtime -> procedures -> adapters -> ROS2 -> embodiment`.

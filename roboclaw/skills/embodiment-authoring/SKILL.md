@@ -27,11 +27,23 @@ always: true
    - `embodied/simulators/`
 5. Keep ids stable so later chat turns can refine the same setup instead of generating a new one.
 
+## First-Run Success Criteria
+
+Treat the first real run as successful only when the generated workspace assets
+are sufficient for RoboClaw to attempt:
+
+- `connect`
+- `calibrate` or an explicit unsupported explanation
+- `move` with a small safe action
+- `debug`
+- `reset`
+
 ## Boundaries
 
 - `robots/` in framework may contain reusable robot manifests such as supported open-source bodies.
 - Attachment placement, ROS2 namespaces, deployment connection params, lab safety limits, and simulator worlds are setup-specific and belong in workspace assets.
 - If a setup needs a new robot manifest that is not reusable enough for framework, create it in workspace first.
+- The current path is framework contracts plus workspace assets loaded through catalog.
 
 ## Scaffolding
 

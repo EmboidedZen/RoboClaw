@@ -43,10 +43,30 @@ embodied/
 - `definition/systems/simulators/`: simulator world/scenario contracts; concrete scenarios belong in workspace files
 - `execution/integration/carriers/`: execution target descriptions for real and simulated backends
 - `execution/integration/transports/`: transport contracts, currently centered on ROS2
-- `execution/integration/adapters/`: bindings from normalized contracts to ROS2 nodes and vendor drivers
+- `execution/integration/adapters/`: bindings from normalized contracts to ROS2 nodes and domain-specific execution paths
 - `execution/orchestration/runtime/`: live sessions, status, active tasks, and target selection
 - `execution/orchestration/procedures/`: reusable connect/calibrate/move/debug/reset flows
 - `execution/observability/telemetry/`: normalized events, state snapshots, traces, and diagnostics
+
+## Runtime Flow
+
+The current embodied flow is:
+
+```text
+user dialogue
+  -> agent guidance
+  -> workspace embodied assets
+  -> build_catalog(workspace)
+  -> runtime session
+  -> procedure
+  -> adapter
+  -> ROS2
+  -> real or sim embodiment
+```
+
+This package only owns the framework side of that chain.
+Anything specific to one lab, one robot instance, one namespace, or one camera
+device belongs in workspace assets instead.
 
 ## Boundary
 
@@ -56,6 +76,16 @@ embodied/
 - `execution/observability/` describes what happened while it was running
 - Concrete setup files such as one user's assembly, deployment, adapter binding, or simulator scenario should be generated under `~/.roboclaw/workspace/embodied/`, not added to this package.
 - `roboclaw.embodied.build_catalog(workspace)` is the merge point: it starts from built-in framework definitions and then loads workspace-generated assets back into the runtime catalog.
+
+## First Priority
+
+The current framework is optimized for one concrete product goal first:
+
+- help a first-time user complete `connect / calibrate / move / debug / reset`
+
+Other goals such as cross-embodiment skills, research replay, and richer
+analysis are intentionally left as extension directions rather than fully
+implemented systems.
 
 ## Rule Of Thumb
 

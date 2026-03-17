@@ -13,6 +13,18 @@ This directory is where RoboClaw should generate or refine setup-specific embodi
 - `intake/`: discovery notes captured from user conversation or environment inspection
 - `_templates/`: intentionally minimal scaffolds for generated Python files
 
+## First-Run Order
+
+When RoboClaw is configuring a setup for the first time, it should usually
+touch these directories in this order:
+
+1. `intake/`
+2. `robots/` or `sensors/` only if framework definitions are insufficient
+3. `assemblies/`
+4. `deployments/`
+5. `adapters/`
+6. `simulators/` only when sim targets are part of the setup
+
 ## Policy
 
 - Prefer importing reusable framework definitions from `roboclaw.embodied.*`.
@@ -21,3 +33,4 @@ This directory is where RoboClaw should generate or refine setup-specific embodi
 - Workspace Python files are discovered by export name. Use `ROBOT`, `SENSOR`, `ASSEMBLY`, `DEPLOYMENT`, `ADAPTER`, `WORLD`, `SCENARIO`, or the plural form of each.
 - Each generated file should include `WORKSPACE_ASSET = WorkspaceAssetContract(...)` with schema version and migration policy so the loader can validate and migrate safely.
 - Treat `_templates/` as fragments to adapt after intake. They should not hardcode one robot class, one camera mount, or one simulator backend.
+- The immediate goal of these files is to make `connect / calibrate / move / debug / reset` work for one concrete setup.

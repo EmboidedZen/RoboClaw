@@ -1,699 +1,316 @@
-# RoboClaw Embodied Stack 最终版图架构说明
+# RoboClaw Embodied Framework
 
-## 1. 定位
+这份文档描述的是 RoboClaw 目前代码里已经落下来的具身框架，不是未来愿景草图。
 
-这份文档不是“当前代码解释”，而是 RoboClaw 具身架构的收敛版本。
+当前阶段只围绕一个核心目标设计：
 
-目标不是先把所有版图都实现完整，而是：
+- 让普通用户通过对话完成 `连接 / 校准 / 移动 / debug / 复位`
+- 尽快把更多开源、知名本体接进 RoboClaw
+- 为后续跨本体技能、研究助手、本体接入范式预留边界，但不提前过度实现
 
-1. 先把第 1 版图做成可快速扩展、可稳定接入、可重复复用的底座。
-2. 第 2/3/4 版图只在当前阶段保留明确接口和扩展边界，不做过度实现。
-3. 让后续接入 `xArm / PiperX / SO101 / 人形 / 轮式 / 灵巧手 / 无人机` 时，不需要推翻现有框架。
+## 当前优先级
 
-## 2. 四块版图与当前优先级
+四个版图的当前优先级是：
 
-当前阶段建议的真实推进顺序：
+1. 通用具身入口版图
+2. 本体接入范式版图
+3. 跨本体技能底座版图
+4. 研究助手版图
 
-1. 版图 1: 通用具身入口
-2. 版图 4: 本体接入范式
-3. 版图 2: 跨本体技能底座
-4. 版图 3: 研究助手
+原因很直接：
 
-原因：
+- 版图 1 是现在必须真的跑起来的东西
+- 版图 4 决定版图 1 能不能快速铺满更多本体
+- 版图 2 需要建立在更稳的统一 contract 之上
+- 版图 3 需要 telemetry / replay / trace 更成熟之后再做
 
-- 版图 1 是当前业务目标
-- 版图 4 决定版图 1 能不能快速铺本体
-- 版图 2 依赖更成熟的统一 action/observation contract
-- 版图 3 依赖更成熟的 telemetry / replay / scene recovery
+## 设计原则
 
-### P0: 通用具身入口版图
+- `roboclaw/embodied/` 只放 framework 代码，不放某个用户现场的 setup
+- 具体 setup 由 agent 生成到 `~/.roboclaw/workspace/embodied/`
+- framework 提供通用 contract、通用组件和可复用 robot/sensor 定义
+- workspace 提供某个现场的 assembly、deployment、adapter、simulator 资产
+- 运行时通过 catalog 把 framework definitions 和 workspace assets 合并
+- 最终执行统一经过 ROS2
+- ROS2 下面不是一个万能桥接，而是按本体域拆分的 bridge contract
 
-目标：
-
-- 让普通用户通过自然语言完成 `连接 / 校准 / 移动 / debug / 复位`
-- 成为最好上手的具身本体统一入口
-
-当前要求：
-
-- 必须实现清楚
-- 必须成为整体架构的设计中心
-- 所有当前代码优先服务这一层
-
-### P1: 本体接入范式版图
-
-目标：
-
-- 给企业和深度用户一套标准接入范式
-- 让自定义本体也能被 RoboClaw 快速理解和接入
-
-当前要求：
-
-- 现在就把 contract 和 checklist 定清楚
-- 现在就把 workspace-first 生成链固定下来
-- 不需要现在就做完整自动化平台
-
-### P2: 跨本体技能底座版图
-
-目标：
-
-- 把最高频语义原技能抽出来
-- 让技能能跨 arm / mobile base / humanoid / hand / drone 复用
-
-当前要求：
-
-- 只保留接口和抽象方向
-- 不追求现在就做完整技能库
-
-### P3: 研究助手版图
-
-目标：
-
-- 数据采集
-- 成功失败判定
-- 场景恢复
-- 推理分析
-- 实验复盘
-
-当前要求：
-
-- 只保留 telemetry / trace / replay / simulator hooks
-- 不提前做复杂研究工作流
-
-## 3. 最终版图总架构
+## 文字框架图
 
 ```text
 用户自然语言
-    ↓
-Agent
-    ├── 对话理解
-    ├── 设备发现与接入引导
-    ├── workspace setup 生成
-    └── procedure 选择
-    ↓
-RoboClaw Embodied Runtime
-    ├── Catalog
-    │   ├── framework definitions
-    │   └── workspace-generated assets
-    ├── Runtime Session Manager
-    ├── Procedure Engine
-    └── Telemetry / Diagnostics
-    ↓
-Embodied Definition Plane
-    ├── schema
-    ├── robots
-    ├── sensors
-    ├── assemblies
-    ├── deployments
-    └── simulators
-    ↓
-Embodied Execution Plane
-    ├── transports
-    ├── carriers
-    ├── adapters
-    └── runtime bindings
-    ↓
+  ↓
+RoboClaw Agent
+  ├── 理解用户意图
+  ├── 发现设备与收集 intake 信息
+  ├── 引导用户补齐缺失配置
+  ├── 在 ~/.roboclaw/workspace/embodied/ 生成或更新 setup 文件
+  └── 选择并执行 connect / calibrate / move / debug / reset procedure
+  ↓
+Embodied Catalog
+  ├── framework definitions
+  │   ├── robots
+  │   ├── sensors
+  │   ├── schema
+  │   ├── assemblies contracts
+  │   ├── deployment contracts
+  │   └── simulator contracts
+  └── workspace-generated assets
+      ├── intake notes
+      ├── local robots / sensors
+      ├── assemblies
+      ├── deployments
+      ├── adapters
+      └── simulator worlds / scenarios
+  ↓
+Embodied Runtime
+  ├── runtime session
+  ├── procedure definitions
+  ├── adapter bindings
+  └── telemetry / diagnostics
+  ↓
+Execution Integration
+  ├── transports
+  ├── carriers
+  ├── adapters
+  └── domain bridges
+  ↓
 ROS2
-    ├── topics
-    ├── services
-    └── actions
-    ↓
-Domain Bridges
-    ├── arm / hand bridge
-    ├── humanoid / whole-body bridge
-    ├── mobile base / fleet bridge
-    ├── drone bridge
-    └── simulator bridge
-    ↓
+  ├── topics
+  ├── services
+  └── actions
+  ↓
 真实本体 / 仿真本体
+  ├── arm / hand
+  ├── humanoid / whole-body
+  ├── mobile base / fleet
+  ├── drone
+  └── simulator
 ```
 
-关键原则：
+## 代码结构
+
+当前具身框架主路径是 [roboclaw/embodied](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/embodied)。
+
+```text
+roboclaw/embodied/
+  ├── definition/
+  │   ├── foundation/schema/
+  │   ├── components/robots/
+  │   ├── components/sensors/
+  │   └── systems/
+  │       ├── assemblies/
+  │       ├── deployments/
+  │       └── simulators/
+  ├── execution/
+  │   ├── integration/
+  │   │   ├── carriers/
+  │   │   ├── transports/
+  │   │   ├── adapters/
+  │   │   └── bridges/
+  │   ├── orchestration/
+  │   │   ├── runtime/
+  │   │   └── procedures/
+  │   └── observability/telemetry/
+  ├── catalog.py
+  └── workspace.py
+```
+
+职责边界：
+
+- `definition/`: 描述系统是什么
+- `execution/integration/`: 描述请求如何到达 ROS2 和 bridge
+- `execution/orchestration/`: 描述当前会话如何被选择和驱动
+- `execution/observability/`: 描述执行过程如何被观测
+- `catalog.py`: 合并 framework definitions 与 workspace assets
+- `workspace.py`: 校验并加载 `~/.roboclaw/workspace/embodied/`
+
+## framework 和 workspace 的边界
+
+### framework 里应该放什么
+
+- 通用 schema
+- 可复用 robot manifests
+- 可复用 sensor manifests
+- assembly / deployment / simulator contract
+- adapter lifecycle / compatibility / result models
+- procedure contract
+- domain bridge contract
+
+### framework 里不应该放什么
+
+- 某个用户实验台的 assembly
+- 某个 lab 的串口、IP、camera device id
+- 某个 demo 的安全边界和 reset 细节
+- 某个用户的本地 world/scenario
+
+### workspace 里应该放什么
+
+`~/.roboclaw/workspace/embodied/` 当前应该承载：
+
+- `intake/`: 设备发现与用户提供事实
+- `robots/`: 暂时还不够通用的本地 robot manifest
+- `sensors/`: 暂时还不够通用的本地 sensor manifest
+- `assemblies/`: 当前 setup 的组合拓扑
+- `deployments/`: 当前现场的连接参数和安全覆盖
+- `adapters/`: 当前 setup 的 adapter binding
+- `simulators/`: 当前 setup 的 world / scenario
+
+## 第 1 版图的最小运行链路
+
+如果 RoboClaw 要在第 1 版图里真正 work，一次完整链路应该是：
+
+1. 用户启动 RoboClaw
+2. RoboClaw 读取 workspace bootstrap 文档和具身规则
+3. RoboClaw 询问或发现：
+   - 本体类型
+   - 传感器
+   - ROS2 namespace / topics / actions / services
+   - real target / sim target
+   - deployment 连接细节
+4. RoboClaw 在 workspace 下写 intake note
+5. RoboClaw 复用 framework 中已有 robot / sensor 定义，必要时补 local-only 定义
+6. RoboClaw 生成 assembly / deployment / adapter / simulator 资产
+7. `build_catalog(workspace)` 把这些资产读回运行时
+8. RoboClaw 选择 procedure：
+   - `connect`
+   - `calibrate`
+   - `move`
+   - `debug`
+   - `reset`
+9. procedure 通过 typed action ref 驱动：
+   - orchestrator actions
+   - adapter actions
+10. adapter 通过 typed result models 把状态、健康、兼容性、执行结果返回给 runtime
+11. runtime 把结果组织成用户可读反馈
+
+这条链路是当前所有文档和代码设计的中心。
+
+## 当前必须稳定的 contract
+
+当前阶段最重要的不是“再加更多功能”，而是让下面这些 contract 足够稳定：
 
-- `roboclaw/embodied/` 只放 framework 协议和通用定义
-- 用户现场的具体 setup 永远生成到 `~/.roboclaw/workspace/embodied/`
-- 上层 agent 不直接依赖 vendor SDK
-- 最终执行统一通过 ROS2
-- 下层不是一个“万能 adapter”，而是多个领域 bridge
+### 1. Action / Observation Contract
 
-## 4. 当前代码框架里已经做对的边界
+当前已经有：
 
-### 4.1 framework 和 workspace 分离
-
-这是当前最重要的正确决策。
-
-- framework: `roboclaw/embodied/`
-- 用户现场: `~/.roboclaw/workspace/embodied/`
-- merge 点: `build_catalog(workspace)`
-
-这意味着：
-
-- 代码库不会被每个用户的现场配置污染
-- agent 可以按用户设备动态生成 setup
-- 未来接很多本体时，核心协议和现场实例不会缠在一起
-
-### 4.2 definition / execution 分离
-
-这是对的。
-
-- `definition`: 回答“系统是什么”
-- `execution`: 回答“系统如何被驱动”
-
-这样后续可以继续扩展不同桥接和不同仿真，而不把所有逻辑塞进 manifest。
-
-### 4.3 robot type / sensor type / attachment instance 分离
-
-这也是对的。
-
-- `RobotManifest` 不应承载用户现场
-- `SensorManifest` 不应承载本体挂载位置
-- `Assembly` 负责把组件实例化并组合
-
-### 4.4 ROS2 作为统一边界
-
-对当前目标是合理的。
-
-原因不是“ROS2 最强”，而是：
-
-- 它能隔离厂商 SDK
-- 它能统一真机和仿真
-- 它适合接 MoveIt、Nav2、`ros2_control`、Gazebo、Isaac 等成熟生态
-
-## 5. 当前框架的核心不足
-
-下面这些不是“以后可以再想”的问题，而是会直接影响第 1 版图能不能铺开的结构性缺口。
-
-### R1. 缺少跨本体统一 observation/action contract
-
-当前 `RobotManifest` 和 `PrimitiveSpec` 还偏“语义命令描述”，不够“机器可检查”。
-
-必须补：
-
-- typed observation schema
-- typed action schema
-- units
-- reference frame
-- update rate
-- command mode
-- tolerance / completion condition
-
-如果不补：
-
-- 跨本体技能底座无法稳定复用
-- arm 能用的 primitive，mobile base / drone / humanoid 无法映射
-- agent 只能靠 prompt 猜动作语义
-
-### R2. Assembly 还不是真正的系统拓扑图
-
-当前 assembly 还是 attachment 列表，不足以表达真实系统。
-
-必须补：
-
-- frame / TF 关系
-- control group
-- end effector / tool / hand 拓扑
-- sensor mount transform
-- resource ownership
-- safety boundary
-- failure domain
-
-如果不补：
-
-- 多传感器和多本体组合会失控
-- 人形、双臂、移动底盘、无人机 payload 很难统一接入
-
-### R3. Adapter contract 太薄
-
-`AdapterBinding` 现在还只是静态入口说明，不足以承载真实接入。
-
-必须补：
-
-- lifecycle
-- readiness
-- degraded mode
-- dependency checks
-- compatibility/version
-- timeout/retry policy
-- error taxonomy
-
-如果不补：
-
-- debug 只能靠经验
-- 用户会频繁遇到“连上了但其实不可用”
-- 第 1 版图体验会非常脆弱
-
-### R4. Procedure engine 还不是生产级
-
-第 1 版图真正卖的是 procedure，不是 primitive。
-
-必须补：
-
-- step preconditions
-- timeout
-- cancel
-- retry
-- compensation / rollback
-- idempotency
-- human-in-the-loop pause points
-
-如果不补：
-
-- “连接 / 校准 / 复位 / debug” 会高度不稳定
-- 同一句话在不同本体上的行为会不一致
-
-### R5. Telemetry 还不够做 debug 和研究助手
-
-必须补：
-
-- timestamp
-- correlation_id
-- component_id
-- severity
-- error_code
-- raw evidence handle
-- replay pointer
-- execution lineage
-
-如果不补：
-
-- 第 1 版图里的 debug 不可靠
-- 第 3 版图后面几乎要重做
-
-### R6. Workspace loader 还缺 validation 和 migration
-
-workspace-first 是对的，但当前 import Python 文件的方式还不够稳。
-
-必须补：
-
-- schema validation
-- version field
-- migration path
-- lint / dry-run
-- duplicate conflict check
-- provenance
-
-如果不补：
-
-- agent 生成的 setup 很容易失控
-- 用户自定义 setup 会把 runtime 弄崩
-
-### R7. 缺少分域 bridge 策略
-
-最终执行都通过 ROS2 没问题，但下层桥接不能只有一种套路。
-
-至少要预留 5 类 bridge：
-
-- arm / hand
-- humanoid / whole-body
-- mobile base / fleet
-- drone
-- simulator
-
-如果不补：
-
-- 框架会下意识被 arm 世界绑死
-- 无人机和移动底盘会被迫塞进错误抽象
-
-## 6. P0 必补 contract 清单
-
-下面这份清单只针对“第 1 版图落地必须有的 contract”。
-
-### C1. Component Contract
-
-作用：
-
-- 定义 robot / sensor 的静态能力
-
-必须字段：
-
-- stable id
-- family/type
-- capability families
-- supported control modes
-- supported sensing modes
-- safety defaults
-- version
-
-优先级：`P0`
-
-### C2. Action/Observation Contract
-
-作用：
-
-- 定义跨本体统一动作和状态接口
-
-必须字段：
-
-- action name
-- parameter schema
-- unit
-- frame
-- tolerance
-- completion semantics
+- action schema
 - observation schema
 - health schema
+- command mode
+- tolerance / completion
 
-优先级：`P0`
+当前意义：
 
-### C3. Assembly Topology Contract
+- 让不同本体至少能在统一动作/状态语义下被描述
 
-作用：
+### 2. Assembly Topology Contract
 
-- 定义系统由哪些本体、传感器、挂载和控制资源组成
-
-必须字段：
+当前已经有：
 
 - robot attachments
 - sensor attachments
-- frames / transforms
-- tool/end-effector map
+- frame transforms
+- tool attachments
 - control groups
-- execution targets
-- default target
+- safety boundaries
+- failure domains
+- resource ownership
 
-优先级：`P0`
+当前意义：
 
-### C4. Deployment Contract
+- 让一个 setup 不只是“挂了几个对象”，而是有基本可检查拓扑
 
-作用：
+### 3. Adapter Lifecycle Contract
 
-- 定义某个现场的具体连接参数和安全覆盖
+当前已经有：
 
-必须字段：
-
-- target selection
-- ROS2 namespace
-- serial/IP/device ids
-- calibration paths
-- safety overrides
-- local notes
-- version
-
-优先级：`P0`
-
-### C5. Adapter Lifecycle Contract
-
-作用：
-
-- 定义从 RoboClaw runtime 到 ROS2/domain bridge 的执行边界
-
-必须字段：
-
-- connect
-- disconnect
-- ready
-- stop
-- reset
-- recover
-- dependency check
+- connect / disconnect / ready / stop / reset / recover
+- dependency checks
 - timeout policy
-- error code taxonomy
+- compatibility constraints
+- degraded mode
+- typed result models
 
-优先级：`P0`
+当前意义：
 
-### C6. Procedure Contract
+- 让接入不会停留在“能 import 一个 driver 就算接入”
 
-作用：
+### 4. Procedure Contract
 
-- 定义 `connect / calibrate / move / debug / reset` 的稳定执行流程
+当前已经有：
 
-必须字段：
-
-- procedure id
-- required capabilities
 - step graph
 - preconditions
-- timeout
-- retry policy
-- operator intervention point
+- retry / timeout
+- cancel / compensation / rollback
+- idempotency
+- typed action ref
 
-优先级：`P0`
+当前意义：
 
-### C7. Telemetry Contract
+- 第 1 版图里的 `connect / calibrate / move / debug / reset` 终于不再只是散落 prompt
 
-作用：
+### 5. Workspace Asset Contract
 
-- 支撑 debug、诊断、复位和未来研究助手
-
-必须字段：
-
-- timestamp
-- correlation id
-- source component
-- event kind
-- severity
-- machine-readable payload
-- raw evidence handle
-
-优先级：`P0`
-
-### C8. Workspace Asset Contract
-
-作用：
-
-- 让 agent 生成的 setup 能被 catalog 稳定读回
-
-必须字段：
+当前已经有：
 
 - export convention
 - schema version
-- validation rules
-- duplicate detection
 - migration policy
+- lint / inspect
+- duplicate detection
+- provenance metadata
 
-优先级：`P0`
+当前意义：
 
-## 7. P2/P3 预留接口，不提前过度实现
+- agent 生成的 setup 文件可以被 catalog 稳定读回
 
-### 第 2 版图现在只需预留
+## 当前仍然保留的风险
 
-- semantic skill registry
-- capability-to-skill mapper
-- normalized action/observation bridge
-- skill simulation hooks
+下面这些是现在仍然明确存在的风险，但不是这轮文档要掩盖的：
 
-### 第 3 版图现在只需预留
+### 1. procedure 已经 typed，但 orchestrator executor 还没有完全落下去
 
-- richer telemetry
-- trace store
-- replay handle
-- experiment metadata
-- scene reset hooks
+也就是：
 
-### 第 4 版图现在要先定规则，再逐步补工具
+- `ProcedureActionRef` 已经不再是裸字符串
+- 但 orchestrator action 还需要后续绑定真实执行入口
 
-- onboarding scaffolds
-- validator
-- contract tests
-- migration tools
-- adapter packaging conventions
+### 2. adapter 已经 typed，但还没有真实本体验证
 
-## 8. 接入任意新本体的标准 checklist
+也就是：
 
-下面这份 checklist 适用于 `xArm / PiperX / SO101 / 人形 / 轮式 / 灵巧手 / 无人机`。
+- `EmbodiedAdapter` 已经不再返回 `dict[str, Any]`
+- 但这些 result models 还需要被真实本体 adapter 消费和验证
 
-### Step 1. 归类本体
+### 3. 现在的 built-in robot / sensor 还很少
 
-- 它属于 arm / humanoid / mobile base / hand / drone 中哪一类
-- 它需要哪类 domain bridge
-- 它是否包含多子系统
+所以当前框架更像“接入底座”，还不是“已经铺满大量本体的平台”。
 
-### Step 2. 明确控制面
+## 文档关系
 
-- 支持 joint / cartesian / velocity / waypoint / mission 哪些控制方式
-- 控制命令的单位、坐标系、频率、反馈是什么
-- stop/reset/recover 怎么定义
+当前推荐这样理解文档层级：
 
-### Step 3. 明确感知面
+- [README.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/README.md)
+  对外介绍项目方向、当前目标、核心路径
+- [embodiment-ros2-architecture.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/embodiment-ros2-architecture.md)
+  介绍当前具身框架是什么、为什么这样分层、第一版图怎么跑
+- [embodied-first-run-checklist.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/embodied-first-run-checklist.md)
+  面向第一次实际跑 RoboClaw 的 checklist
+- [roboclaw/embodied/README.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/embodied/README.md)
+  介绍代码目录边界
+- [roboclaw/templates/EMBODIED.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/templates/EMBODIED.md)
+  告诉 agent workspace-first 的总规则
+- [roboclaw/templates/embodied/README.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/templates/embodied/README.md)
+  告诉 agent workspace 目录里各个子目录的用途
+- [roboclaw/skills/embodiment-authoring/SKILL.md](/Users/elvin/Workspace/Project/embodied_ai/claw/RoboClaw/roboclaw/skills/embodiment-authoring/SKILL.md)
+  告诉 agent 写具身资产时的行为约束
 
-- 有哪些传感器
-- 数据通过什么 ROS2 topic/service 暴露
-- 哪些传感器对 `debug` 必不可少
+## 下一步最重要的事情
 
-### Step 4. 定义最小 P0 能力
+如果接下来不是继续写文档，而是继续推代码，最优先的是：
 
-第 1 版图最低必须支持：
-
-- connect
-- get_state
-- get_health
-- stop
-- reset
-- recover
-- execute at least one movement primitive
-- debug snapshot
-
-如果这 8 项缺任何一项，该本体不应进入“可对话接入”名单。
-
-### Step 5. 定义 robot/sensor manifests
-
-- 优先复用 framework 的组件 manifest
-- 如果是本地独有设备，先定义在 workspace
-- 不要把现场参数写进 framework
-
-### Step 6. 组装 assembly
-
-- 明确 robots
-- 明确 sensors
-- 明确 execution targets
-- 明确 default target
-- 明确 frame / mount / tool 关系
-
-### Step 7. 写 deployment
-
-- 真实设备路径
-- ROS2 namespace
-- 相机设备
-- 标定目录
-- 本地安全限制
-
-### Step 8. 写 adapter binding
-
-- 指向 domain bridge 或 ROS2 entrypoint
-- 标注 supported targets
-- 标注依赖和 readiness 要求
-
-### Step 9. 接 procedure
-
-- connect procedure
-- calibrate procedure
-- move procedure
-- debug procedure
-- reset procedure
-
-任何本体没有 procedure 对接完成，都不算第 1 版图接入完成。
-
-### Step 10. 做 contract validation
-
-- schema pass
-- duplicate id check
-- missing dependency check
-- target consistency check
-- telemetry availability check
-
-## 9. 风险排序
-
-下面是当前阶段最应该关注的风险，从高到低排序。
-
-### Risk 1. 机械臂中心化风险
-
-症状：
-
-- primitive、capability、procedure 全部默认按 arm 思维设计
-
-影响：
-
-- 后面接轮式、人形、无人机会大幅重构
-
-应对：
-
-- 现在就把 domain bridge 分层写进设计
-- 现在就把 observation/action contract 做成真正跨本体
-
-### Risk 2. procedure 不稳定风险
-
-症状：
-
-- 有 manifest、有 adapter，但 `connect/debug/reset` 行为不稳定
-
-影响：
-
-- 第 1 版图用户体验直接失败
-
-应对：
-
-- procedure engine 优先级必须高于 skill engine
-
-### Risk 3. workspace 资产失控风险
-
-症状：
-
-- agent 生成代码越来越多，但没有 validation/migration
-
-影响：
-
-- 用户 setup 很快不可维护
-
-应对：
-
-- 尽快补 schema version、validator、catalog dry-run
-
-### Risk 4. telemetry 不足风险
-
-症状：
-
-- 系统能动，但说不清为什么动不了
-
-影响：
-
-- debug 体验差
-- 研究助手版图未来返工
-
-应对：
-
-- 第 1 版图就补关键 telemetry 字段
-
-### Risk 5. ROS2 统一但下层桥接混乱风险
-
-症状：
-
-- 所有本体都硬塞一套 adapter 模式
-
-影响：
-
-- 平台表面统一，底层难维护
-
-应对：
-
-- 显式定义 arm/mobile/drone/humanoid/simulator bridge 类型
-
-## 10. 实施顺序
-
-### Phase A: 只为第 1 版图落地
-
-必须做：
-
-1. 补强 `Action/Observation Contract`
-2. 补强 `Assembly Topology Contract`
-3. 补强 `Adapter Lifecycle Contract`
-4. 补强 `Procedure Contract`
-5. 补强 `Telemetry Contract`
-6. 补强 `Workspace Asset Contract`
-
-### Phase B: 扩到更多本体
-
-再做：
-
-1. domain bridge 分层
-2. contract validator
-3. catalog dry-run
-4. richer deployment tooling
-
-### Phase C: 为第 2/3/4 版图开口
-
-最后再做：
-
-1. semantic skill registry
-2. trace store / replay
-3. onboarding automation
-4. migration / packaging / verification
-
-## 11. 最终结论
-
-当前这套框架可以被认定为：
-
-- 一个合理的 `v0 平台骨架`
-- 一个可以继续演化的方向
-- 但还不是最终稳定范式
-
-如果只看“方向”，它是对的。
-
-如果只看“能不能立刻高效铺满所有开源知名本体”，答案是否定的。
-
-当前最正确的策略是：
-
-- 把第 1 版图做成设计中心
-- 把其余版图做成接口保留
-- 先把 P0 contract 补齐
-- 再开始大规模铺本体
-
-否则接入速度会很快，但后面返工会更快。
+1. 用一个真实本体把当前 framework 跑通
+2. 把 orchestrator action 真正绑定到 runtime executor
+3. 让 agent 按 workspace-first 流程真正生成一套 setup
+4. 用第一次实跑 checklist 检查哪里还会卡住
