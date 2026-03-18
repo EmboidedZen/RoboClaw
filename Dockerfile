@@ -9,6 +9,7 @@ ARG ROBOCLAW_ROS2_STAGE1_PYTHON=/usr/local/bin/python3
 ARG ROBOCLAW_PYTHON_VERSION=3.11
 ENV ROBOCLAW_ROS2_DISTRO=${ROBOCLAW_ROS2_DISTRO}
 ENV ROBOCLAW_ROS2_STAGE1_PYTHON=${ROBOCLAW_ROS2_STAGE1_PYTHON}
+ENV ROBOCLAW_ROS2_STAGE1_PYTHONPATH=/usr/local/lib/python${ROBOCLAW_PYTHON_VERSION}/dist-packages:/app
 
 # Install Python 3.11 on both Ubuntu profiles and Node.js 20 for the WhatsApp bridge.
 RUN apt-get update && \
@@ -64,21 +65,12 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 RUN mkdir -p roboclaw bridge && touch roboclaw/__init__.py && \
     python -m pip install --no-cache-dir . && \
-    if [ "${ROBOCLAW_INSTALL_ROS2}" = "1" ]; then \
-      /usr/bin/python3 -m venv /opt/roboclaw-ros2-venv && \
-      /opt/roboclaw-ros2-venv/bin/python -m ensurepip --upgrade && \
-      /opt/roboclaw-ros2-venv/bin/python -m pip install --no-cache-dir --upgrade pip && \
-      /opt/roboclaw-ros2-venv/bin/python -m pip install --no-cache-dir .; \
-    fi && \
     rm -rf roboclaw bridge
 
 # Copy the full source and install
 COPY roboclaw/ roboclaw/
 COPY bridge/ bridge/
-RUN python -m pip install --no-cache-dir . && \
-    if [ "${ROBOCLAW_INSTALL_ROS2}" = "1" ]; then \
-      /opt/roboclaw-ros2-venv/bin/python -m pip install --no-cache-dir .; \
-    fi
+RUN python -m pip install --no-cache-dir .
 
 RUN mv /usr/local/bin/roboclaw /usr/local/bin/roboclaw-real
 COPY scripts/docker/roboclaw-wrapper.sh /usr/local/bin/roboclaw

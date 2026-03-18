@@ -125,6 +125,7 @@ class Ros2EmbodimentProfile:
         )
         command = [
             ros_setup,
+            'PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}${ROBOCLAW_ROS2_STAGE1_PYTHONPATH:-/app}"',
             f"${{ROBOCLAW_ROS2_STAGE1_PYTHON:-python3}} -m {self.stage1_bridge_module}",
             f"--namespace {shlex.quote(namespace)}",
             f"--profile-id {shlex.quote(self.id)}",

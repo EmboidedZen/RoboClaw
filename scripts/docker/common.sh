@@ -77,7 +77,7 @@ docker_profile_stage1_python() {
   profile="$(docker_profile "${1:-}")"
   case "${profile}" in
     *-ros2)
-      printf '%s\n' "/opt/roboclaw-ros2-venv/bin/python"
+      printf '%s\n' "/usr/bin/python3"
       ;;
     *)
       printf '%s\n' "/usr/local/bin/python3"
