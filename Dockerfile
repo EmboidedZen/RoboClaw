@@ -7,9 +7,21 @@ ARG ROBOCLAW_INSTALL_ROS2=0
 ARG ROBOCLAW_ROS2_DISTRO=none
 ARG ROBOCLAW_ROS2_STAGE1_PYTHON=/usr/local/bin/python3
 ARG ROBOCLAW_PYTHON_VERSION=3.11
+ARG HTTP_PROXY=
+ARG HTTPS_PROXY=
+ARG ALL_PROXY=
+ARG http_proxy=
+ARG https_proxy=
+ARG all_proxy=
 ENV ROBOCLAW_ROS2_DISTRO=${ROBOCLAW_ROS2_DISTRO}
 ENV ROBOCLAW_ROS2_STAGE1_PYTHON=${ROBOCLAW_ROS2_STAGE1_PYTHON}
 ENV ROBOCLAW_ROS2_STAGE1_PYTHONPATH=/usr/local/lib/python${ROBOCLAW_PYTHON_VERSION}/dist-packages:/app
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV ALL_PROXY=${ALL_PROXY}
+ENV http_proxy=${http_proxy}
+ENV https_proxy=${https_proxy}
+ENV all_proxy=${all_proxy}
 
 # Install Python 3.11 on both Ubuntu profiles and Node.js 20 for the WhatsApp bridge.
 RUN apt-get update && \
@@ -80,6 +92,15 @@ RUN chmod +x /usr/local/bin/roboclaw
 WORKDIR /app/bridge
 RUN npm install && npm run build
 WORKDIR /app
+
+# Clear build-time proxy defaults from the final image. Runtime proxy values are
+# injected by the Docker workflow scripts when needed.
+ENV HTTP_PROXY=
+ENV HTTPS_PROXY=
+ENV ALL_PROXY=
+ENV http_proxy=
+ENV https_proxy=
+ENV all_proxy=
 
 # Create config directory
 RUN mkdir -p /root/.roboclaw
