@@ -17,6 +17,9 @@ Start a long-lived dev container for one instance and profile:
 ./scripts/docker/exec-dev.sh devbox --profile ubuntu2404-ros2
 ```
 
+If no dev image exists yet, `start-dev.sh` builds a mutable dev image for that
+profile without requiring a clean Git worktree.
+
 The dev container mounts the host repo at `/roboclaw-source` and uses it first on `PYTHONPATH`,
 so ordinary source edits are visible immediately without rebuilding the image.
 

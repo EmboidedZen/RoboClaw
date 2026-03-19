@@ -63,6 +63,12 @@ RoboClaw supports three main ways to work with the codebase:
 - [Docker Dev Workflow](./docs/docker-workflow.md): bind-mounted developer containers that run the latest host source without rebuilds
 - [Docker Validation Workflow](./docs/docker-validation.md): immutable ROS2 matrix images for clean acceptance runs
 
+Concrete SO101 acceptance helpers also live in the repo:
+
+- [`tests/test_native_so101_acceptance.sh`](./tests/test_native_so101_acceptance.sh)
+- [`tests/test_docker_dev_bind_mount.sh`](./tests/test_docker_dev_bind_mount.sh)
+- [`tests/test_matrix_so101_acceptance.sh`](./tests/test_matrix_so101_acceptance.sh)
+
 If you like using AI, you can simply ask your coding assistant:
 
 ```text

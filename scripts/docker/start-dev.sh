@@ -21,9 +21,10 @@ prepare_auth_mounts "${INSTANCE}" "${PROFILE}"
 TARGET_IMAGE="$(dev_image_ref "${INSTANCE}" "${PROFILE}")"
 if ! docker image inspect "${TARGET_IMAGE}" >/dev/null 2>&1; then
   if ! docker image inspect "$(image_ref "${INSTANCE}" "${PROFILE}")" >/dev/null 2>&1; then
-    "${SCRIPT_DIR}/build-image.sh" --profile "${PROFILE}" "${INSTANCE}"
+    "${SCRIPT_DIR}/build-dev-image.sh" --profile "${PROFILE}" "${INSTANCE}"
+  else
+    docker tag "$(image_ref "${INSTANCE}" "${PROFILE}")" "${TARGET_IMAGE}"
   fi
-  docker tag "$(image_ref "${INSTANCE}" "${PROFILE}")" "${TARGET_IMAGE}"
 fi
 
 "${SCRIPT_DIR}/bootstrap-instance.sh" --profile "${PROFILE}" "${INSTANCE}"

@@ -41,6 +41,23 @@ For embodied validation, use a bounded command sequence such as:
 
 Then continue the conversation with the device and setup facts that RoboClaw requests.
 
+For a fixed SO101 acceptance run across both ROS2 profiles, use:
+
+```bash
+./tests/test_matrix_so101_acceptance.sh
+```
+
+That helper builds the immutable matrix, runs this five-message sequence on each
+profile, requires `gripper_open` and `gripper_close` to complete through the
+framework path, and then checks that the persisted session metadata contains
+only `/dev/serial/by-id/...` device identifiers:
+
+- `I want to connect a real robot`
+- `SO101`
+- `connected`
+- `open the gripper`
+- `close the gripper`
+
 ## Acceptance Notes
 
 - Build uses host networking.
