@@ -126,24 +126,26 @@ class EmbodiedExecutionController:
             await on_progress(f"Embodied command routed to setup `{setup.setup_id}`.")
 
         if intent.kind == ProcedureKind.CONNECT:
-            result = await self.executor.execute_connect(context)
+            result = await self.executor.execute_connect(context, on_progress=on_progress)
         elif intent.kind == ProcedureKind.MOVE and intent.primitive_name is not None:
             result = await self.executor.execute_move(
                 context,
                 primitive_name=intent.primitive_name,
                 primitive_args=intent.primitive_args,
+                on_progress=on_progress,
             )
         elif intent.kind == ProcedureKind.DEBUG:
             result = await self.executor.execute_debug(context)
         elif intent.kind == ProcedureKind.RESET:
             result = await self.executor.execute_reset(context)
         elif intent.kind == ProcedureKind.CALIBRATE:
-            result = await self.executor.execute_calibrate(context)
+            result = await self.executor.execute_calibrate(context, on_progress=on_progress)
         else:
             result = await self.executor.execute_move(
                 context,
                 primitive_name=intent.primitive_name or "unknown",
                 primitive_args=intent.primitive_args,
+                on_progress=on_progress,
             )
 
         session.metadata[EMBODIED_RUNTIME_STATE_KEY] = {

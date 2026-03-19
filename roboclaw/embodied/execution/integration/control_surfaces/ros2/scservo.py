@@ -119,13 +119,23 @@ class ScsServoBus:
         self.write_byte(servo_id, self.LOCK_ADDR, 1)
 
     def read_position(self, servo_id: int) -> int:
+        return self.read_word(
+            servo_id,
+            self.PRESENT_POSITION_ADDR,
+            signed=True,
+        )
+
+    def read_word(self, servo_id: int, address: int, *, signed: bool = False, sign_bit: int = 15) -> int:
         value, result, error = self.packet_handler.read2ByteTxRx(
             self.port_handler,
             servo_id,
-            self.PRESENT_POSITION_ADDR,
+            address,
         )
-        self._raise_if_failed(result, error, f"read present position for servo {servo_id}")
-        return _decode_sign_magnitude(int(value), 15)
+        self._raise_if_failed(result, error, f"read 0x{address:02x} for servo {servo_id}")
+        raw_value = int(value)
+        if signed:
+            return _decode_sign_magnitude(raw_value, sign_bit)
+        return raw_value
 
     def write_position(self, servo_id: int, raw_value: int) -> None:
         result, error = self.packet_handler.write2ByteTxRx(

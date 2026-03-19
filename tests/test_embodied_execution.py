@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from roboclaw.agent.loop import AgentLoop
 from roboclaw.agent.tools.base import Tool
 from roboclaw.agent.tools.filesystem import ListDirTool, ReadFileTool, WriteFileTool
+from roboclaw.agent.tools.registry import ToolRegistry
 from roboclaw.bus.queue import MessageBus
+from roboclaw.config.loader import CONFIG_PATH_ENV
 from roboclaw.embodied.execution.integration.transports.ros2 import canonical_ros2_namespace
 from roboclaw.embodied.execution.orchestration.runtime.executor import ProcedureExecutor
+from roboclaw.embodied.execution.orchestration.runtime.manager import RuntimeManager
+from roboclaw.embodied.execution.orchestration.runtime.model import RuntimeStatus
 from roboclaw.embodied.onboarding import (
     SETUP_STATE_KEY,
     SetupOnboardingState,
@@ -18,6 +23,15 @@ from roboclaw.embodied.onboarding import (
 )
 from roboclaw.providers.base import LLMResponse
 from roboclaw.session.manager import Session
+
+
+@pytest.fixture(autouse=True)
+def _framework_calibration_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    calibration_path = config_path.parent / "calibration" / "so101" / "so101_real.json"
+    calibration_path.parent.mkdir(parents=True, exist_ok=True)
+    calibration_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv(CONFIG_PATH_ENV, str(config_path))
 
 
 class FakeExecTool(Tool):
@@ -477,3 +491,133 @@ def test_state_confirmation_treats_real_so101_open_position_as_open() -> None:
     )
 
     assert "Current gripper state: open" in message
+
+
+def _execution_context(
+    tmp_path: Path,
+    *,
+    calibration_exists: bool,
+    runtime_status: RuntimeStatus = RuntimeStatus.DISCONNECTED,
+):
+    calibration_path = tmp_path / "scenario-calibration" / "so101" / "so101_real.json"
+    calibration_path.parent.mkdir(parents=True, exist_ok=True)
+    if calibration_exists:
+        calibration_path.write_text("{}", encoding="utf-8")
+
+    runtime_manager = RuntimeManager()
+    executor = ProcedureExecutor(ToolRegistry(), runtime_manager)
+    runtime = runtime_manager.create(
+        session_id="cli:test:so101_setup",
+        assembly_id="so101_setup",
+        deployment_id="so101_setup_real_local",
+        target_id="real",
+        adapter_id="so101_setup_ros2_local",
+    )
+    runtime.status = runtime_status
+    context = SimpleNamespace(
+        setup_id="so101_setup",
+        assembly=SimpleNamespace(id="so101_setup"),
+        deployment=SimpleNamespace(
+            id="so101_setup_real_local",
+            target_id="real",
+            connection={"serial_device_by_id": "/dev/serial/by-id/usb-so101"},
+            robots={"primary": {"serial_device_by_id": "/dev/serial/by-id/usb-so101"}},
+        ),
+        target=SimpleNamespace(id="real"),
+        robot=SimpleNamespace(id="so101"),
+        adapter_binding=SimpleNamespace(id="so101_setup_ros2_local"),
+        profile=SimpleNamespace(
+            robot_id="so101",
+            requires_calibration=True,
+            canonical_calibration_path=lambda: calibration_path,
+        ),
+        runtime=runtime,
+    )
+    return executor, context, calibration_path
+
+
+@pytest.mark.asyncio
+async def test_first_move_requires_calibration_before_connect(tmp_path: Path) -> None:
+    executor, context, calibration_path = _execution_context(tmp_path, calibration_exists=False)
+
+    result = await executor.execute_move(context, primitive_name="gripper_close")
+
+    assert result.ok is False
+    assert "needs calibration before `connect` or motion" in result.message
+    assert str(calibration_path) in result.message
+    assert "Reply with `calibrate`" in result.message
+    assert context.runtime.status == RuntimeStatus.ERROR
+
+
+@pytest.mark.asyncio
+async def test_follow_on_move_skips_calibration_recheck_once_runtime_is_ready(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executor, context, _ = _execution_context(
+        tmp_path,
+        calibration_exists=False,
+        runtime_status=RuntimeStatus.READY,
+    )
+
+    class FakeAdapter:
+        async def get_state(self):
+            return SimpleNamespace(values={"gripper_percent": 20.0})
+
+        async def execute_primitive(self, primitive_name: str, primitive_args: dict[str, object]):
+            assert primitive_name == "gripper_close"
+            assert primitive_args == {}
+            return SimpleNamespace(
+                accepted=True,
+                completed=True,
+                message="done",
+                error_code=None,
+                output={},
+            )
+
+    monkeypatch.setattr(executor, "_adapter", lambda _: FakeAdapter())
+
+    result = await executor.execute_move(context, primitive_name="gripper_close")
+
+    assert result.ok is True
+    assert "gripper_close" in result.message
+
+
+@pytest.mark.asyncio
+async def test_calibrate_streams_live_so101_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executor, context, calibration_path = _execution_context(tmp_path, calibration_exists=False)
+    progress: list[str] = []
+
+    class FakeMonitor:
+        def connect(self) -> None:
+            return None
+
+        def prepare_manual_calibration(self) -> None:
+            return None
+
+        def snapshot(self):
+            rows = (
+                SimpleNamespace(joint_name="shoulder_pan", servo_id=1, range_min_raw=120, position_raw=512, range_max_raw=980),
+                SimpleNamespace(joint_name="gripper", servo_id=6, range_min_raw=1900, position_raw=2100, range_max_raw=3600),
+            )
+            return SimpleNamespace(
+                device_by_id="/dev/serial/by-id/usb-so101",
+                resolved_device="/dev/ttyACM0",
+                rows=rows,
+            )
+
+        def disconnect(self) -> None:
+            return None
+
+    monkeypatch.setattr(executor, "_build_so101_calibration_monitor", lambda _: FakeMonitor())
+    monkeypatch.setattr(executor, "_so101_calibration_stream_settings", lambda: (0.0, 0.0, 3))
+
+    async def on_progress(content: str) -> None:
+        progress.append(content)
+
+    result = await executor.execute_calibrate(context, on_progress=on_progress)
+
+    assert result.ok is False
+    assert str(calibration_path) in result.message
+    assert "LeRobot-style `MIN | POS | MAX` table" in result.message
+    assert "bounded test stream finished" in result.message
+    assert progress
+    assert "SO101 calibration live view frame 1" in progress[0]
+    assert "shoulder_pan" in progress[0]

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from roboclaw.agent.tools.registry import ToolRegistry
@@ -83,7 +86,16 @@ class ProcedureExecutor:
             self._adapters[context.runtime.id] = adapter
         return adapter
 
-    async def execute_connect(self, context: ExecutionContext) -> ProcedureExecutionResult:
+    async def execute_connect(
+        self,
+        context: ExecutionContext,
+        *,
+        on_progress: Any | None = None,
+    ) -> ProcedureExecutionResult:
+        preflight = self._ensure_calibration_ready(context)
+        if preflight is not None and context.runtime.status != RuntimeStatus.READY:
+            return preflight
+
         adapter = self._adapter(context)
         context.runtime.status = RuntimeStatus.CONNECTING
 
@@ -140,13 +152,14 @@ class ProcedureExecutor:
         *,
         primitive_name: str,
         primitive_args: dict[str, Any] | None = None,
+        on_progress: Any | None = None,
     ) -> ProcedureExecutionResult:
-        adapter = self._adapter(context)
-        if context.runtime.status == RuntimeStatus.DISCONNECTED:
-            connected = await self.execute_connect(context)
+        if context.runtime.status != RuntimeStatus.READY:
+            connected = await self.execute_connect(context, on_progress=on_progress)
             if not connected.ok:
                 return connected
 
+        adapter = self._adapter(context)
         context.runtime.status = RuntimeStatus.BUSY
         pre_state = await adapter.get_state()
         primitive = await adapter.execute_primitive(primitive_name, primitive_args or {})
@@ -221,15 +234,202 @@ class ProcedureExecutor:
             details={"stop_message": stop_result.message, **reset_result.details},
         )
 
-    async def execute_calibrate(self, context: ExecutionContext) -> ProcedureExecutionResult:
+    async def execute_calibrate(
+        self,
+        context: ExecutionContext,
+        *,
+        on_progress: Any | None = None,
+    ) -> ProcedureExecutionResult:
+        calibration_path = self._calibration_path(context)
+        if calibration_path is not None and calibration_path.exists():
+            return ProcedureExecutionResult(
+                procedure=ProcedureKind.CALIBRATE,
+                ok=True,
+                message=(
+                    f"Setup `{context.setup_id}` already has a calibration file at `{calibration_path}`. "
+                    "You can retry `connect` or your motion command."
+                ),
+                details={"calibration_path": str(calibration_path)},
+            )
+
+        if getattr(context.profile, "robot_id", None) == "so101":
+            return await self._execute_so101_calibration_guide(context, on_progress=on_progress)
+
+        expected_path = str(calibration_path) if calibration_path is not None else None
         return ProcedureExecutionResult(
             procedure=ProcedureKind.CALIBRATE,
             ok=False,
             message=(
-                f"Setup `{context.setup_id}` does not expose a control-surface calibration surface yet. "
-                "Try `connect`, `open gripper`, `debug`, or `reset`."
+                f"Setup `{context.setup_id}` needs calibration before execution."
+                + (f" Expected canonical path: `{expected_path}`." if expected_path else "")
+                + " Reply with `calibrate` after the hardware is ready so RoboClaw can walk you through it."
             ),
         )
+
+    def _calibration_path(self, context: ExecutionContext) -> Path | None:
+        profile = context.profile
+        if profile is None or not getattr(profile, "requires_calibration", False):
+            return None
+        return profile.canonical_calibration_path()
+
+    def _ensure_calibration_ready(self, context: ExecutionContext) -> ProcedureExecutionResult | None:
+        calibration_path = self._calibration_path(context)
+        if calibration_path is None or calibration_path.exists():
+            return None
+
+        context.runtime.status = RuntimeStatus.ERROR
+        context.runtime.last_error = f"Missing calibration file: {calibration_path}"
+        return ProcedureExecutionResult(
+            procedure=ProcedureKind.CALIBRATE,
+            ok=False,
+            message=(
+                f"Setup `{context.setup_id}` needs calibration before `connect` or motion."
+                f" Expected canonical path: `{calibration_path}`."
+                " Reply with `calibrate` to start the live SO101 calibration guide."
+            ),
+            details={"calibration_path": str(calibration_path)},
+        )
+
+    @staticmethod
+    def _serial_device_by_id(context: ExecutionContext) -> str | None:
+        device = str(context.deployment.connection.get("serial_device_by_id") or "").strip()
+        if device:
+            return device
+        for robot_config in context.deployment.robots.values():
+            candidate = str(robot_config.get("serial_device_by_id") or "").strip()
+            if candidate:
+                return candidate
+        return None
+
+    def _build_so101_calibration_monitor(self, context: ExecutionContext) -> Any:
+        from roboclaw.embodied.execution.integration.control_surfaces.ros2.so101_feetech import So101CalibrationMonitor
+
+        device_by_id = self._serial_device_by_id(context)
+        if not device_by_id:
+            raise RuntimeError("No stable `/dev/serial/by-id/...` device is configured for this setup yet.")
+        return So101CalibrationMonitor(device_by_id=device_by_id)
+
+    async def _execute_so101_calibration_guide(
+        self,
+        context: ExecutionContext,
+        *,
+        on_progress: Any | None = None,
+    ) -> ProcedureExecutionResult:
+        calibration_path = self._calibration_path(context)
+        try:
+            monitor = self._build_so101_calibration_monitor(context)
+            monitor.connect()
+            monitor.prepare_manual_calibration()
+            interval_s, heartbeat_s, sample_limit = self._so101_calibration_stream_settings()
+            stream_result = await self._stream_so101_calibration_view(
+                monitor,
+                calibration_path=calibration_path,
+                on_progress=on_progress,
+                interval_s=interval_s,
+                heartbeat_s=heartbeat_s,
+                sample_limit=sample_limit,
+            )
+        except Exception as exc:
+            context.runtime.status = RuntimeStatus.ERROR
+            context.runtime.last_error = str(exc)
+            return ProcedureExecutionResult(
+                procedure=ProcedureKind.CALIBRATE,
+                ok=False,
+                message=(
+                    "RoboClaw could not start the live SO101 calibration guide."
+                    f" {exc}"
+                ),
+            )
+        finally:
+            if "monitor" in locals():
+                monitor.disconnect()
+
+        context.runtime.status = RuntimeStatus.DISCONNECTED
+        context.runtime.last_error = None
+        expected_path = str(calibration_path) if calibration_path is not None else "unknown"
+        if stream_result == "saved":
+            return ProcedureExecutionResult(
+                procedure=ProcedureKind.CALIBRATE,
+                ok=True,
+                message=(
+                    f"SO101 calibration file detected at `{expected_path}`."
+                    " You can retry `connect` or your motion command now."
+                ),
+                details={"calibration_path": expected_path},
+            )
+
+        final_clause = (
+            " Move the arm by hand and keep watching the live values until you save the canonical calibration file."
+        )
+        if sample_limit is not None:
+            final_clause = (
+                " The bounded test stream finished."
+                " Move the arm by hand while watching those live values, then create the canonical calibration file"
+                " before retrying `connect`."
+            )
+        return ProcedureExecutionResult(
+            procedure=ProcedureKind.CALIBRATE,
+            ok=False,
+            message=(
+                f"Live SO101 calibration stream started for setup `{context.setup_id}`."
+                " RoboClaw disabled torque and streamed a LeRobot-style `MIN | POS | MAX` table above."
+                + final_clause
+                + f" Expected canonical path: `{expected_path}`."
+            ),
+            details={"calibration_path": expected_path},
+        )
+
+    def _so101_calibration_stream_settings(self) -> tuple[float, float, int | None]:
+        interval_s = 0.2
+        heartbeat_s = 1.0
+        raw_limit = os.environ.get("ROBOCLAW_SO101_CALIBRATION_SAMPLE_LIMIT", "").strip()
+        sample_limit = int(raw_limit) if raw_limit else None
+        return interval_s, heartbeat_s, sample_limit
+
+    async def _stream_so101_calibration_view(
+        self,
+        monitor: Any,
+        *,
+        calibration_path: Path | None,
+        on_progress: Any | None,
+        interval_s: float,
+        heartbeat_s: float,
+        sample_limit: int | None,
+    ) -> str:
+        sample_idx = 0
+        last_payload = ""
+        last_emit = 0.0
+        while True:
+            sample_idx += 1
+            snapshot = monitor.snapshot()
+            payload = self._format_so101_calibration_snapshot(snapshot, sample_idx=sample_idx)
+            now = asyncio.get_running_loop().time()
+            if on_progress is not None and (payload != last_payload or (now - last_emit) >= heartbeat_s):
+                await on_progress(payload)
+                last_emit = now
+                last_payload = payload
+            if calibration_path is not None and calibration_path.exists():
+                return "saved"
+            if sample_limit is not None and sample_idx >= sample_limit:
+                return "sample_limit"
+            await asyncio.sleep(interval_s)
+
+    @staticmethod
+    def _format_so101_calibration_snapshot(snapshot: Any, *, sample_idx: int) -> str:
+        def _cell(value: int | None) -> str:
+            return "?" if value is None else str(value)
+
+        lines = [
+            f"SO101 calibration live view frame {sample_idx} on `{snapshot.resolved_device or snapshot.device_by_id}`",
+            "```text",
+            "JOINT            ID     MIN    POS    MAX",
+        ]
+        for row in snapshot.rows:
+            lines.append(
+                f"{row.joint_name:<16} {row.servo_id:>2} { _cell(row.range_min_raw):>7} { _cell(row.position_raw):>6} { _cell(row.range_max_raw):>6}"
+            )
+        lines.append("```")
+        return "\n".join(lines)
 
     @staticmethod
     def _state_confirmation(
