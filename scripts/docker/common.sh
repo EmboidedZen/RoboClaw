@@ -7,6 +7,7 @@ ROBOCLAW_DOCKER_HOME="${ROBOCLAW_DOCKER_HOME:-${HOME}/.roboclaw-docker}"
 DEFAULT_DOCKER_PROFILE="${ROBOCLAW_DOCKER_PROFILE:-ubuntu2404-ros2}"
 DEFAULT_MATRIX_PROFILES="${ROBOCLAW_DOCKER_MATRIX_PROFILES:-ubuntu2204-ros2,ubuntu2404-ros2}"
 ROBOCLAW_PYTHON_VERSION="${ROBOCLAW_PYTHON_VERSION:-3.11}"
+ROBOCLAW_CONTAINER_HOST_DEV_ROOT="${ROBOCLAW_CONTAINER_HOST_DEV_ROOT:-/roboclaw-host-dev}"
 
 die() {
   echo "error: $*" >&2
@@ -569,7 +570,7 @@ host_serial_symlink_dir() {
 append_hardware_device_args() {
   local -n docker_args_ref="$1"
   local seen_group_ids=" "
-  local device group_id serial_symlink_dir
+  local device group_id serial_symlink_dir group_name host_dev_root
 
   while IFS= read -r device; do
     [ -n "${device}" ] || continue
@@ -581,10 +582,24 @@ append_hardware_device_args() {
     fi
   done < <(host_serial_devices || true)
 
+  for group_name in dialout uucp; do
+    group_id="$(getent group "${group_name}" 2>/dev/null | cut -d: -f3 || true)"
+    if [ -n "${group_id}" ] && [[ "${seen_group_ids}" != *" ${group_id} "* ]]; then
+      docker_args_ref+=(--group-add "${group_id}")
+      seen_group_ids+="$(printf '%s ' "${group_id}")"
+    fi
+  done
+
+  docker_args_ref+=(--device-cgroup-rule "c 166:* rmw")
+  docker_args_ref+=(--device-cgroup-rule "c 188:* rmw")
+
   serial_symlink_dir="$(host_serial_symlink_dir || true)"
   if [ -n "${serial_symlink_dir}" ]; then
     docker_args_ref+=(-v "${serial_symlink_dir}:${serial_symlink_dir}:ro")
   fi
+
+  host_dev_root="${ROBOCLAW_CONTAINER_HOST_DEV_ROOT}"
+  docker_args_ref+=(-v "/dev:${host_dev_root}")
 }
 
 compose_cmd() {

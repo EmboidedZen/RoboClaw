@@ -146,24 +146,54 @@ def get_legacy_sessions_dir() -> Path:
     return Path.home() / ".roboclaw" / "sessions"
 
 
+def _host_dev_root() -> Path | None:
+    raw = os.environ.get("ROBOCLAW_HOST_DEV_ROOT", "").strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    return path if path.exists() else None
+
+
+def _mirror_dev_path(candidate: Path) -> Path | None:
+    host_dev_root = _host_dev_root()
+    if host_dev_root is None:
+        return None
+    try:
+        relative = candidate.relative_to(Path("/dev"))
+    except ValueError:
+        return None
+    return host_dev_root / relative
+
+
 def resolve_serial_by_id_path(device_path: str) -> Path | None:
     """Resolve a /dev/tty* path back to its /dev/serial/by-id symlink."""
     candidate = Path(device_path).expanduser()
     serial_dir = Path("/dev/serial/by-id")
+    mirrored_serial_dir = _mirror_dev_path(serial_dir)
     if str(candidate).startswith("/dev/serial/by-id/"):
-        return candidate if candidate.exists() else None
-    if not candidate.exists() or not serial_dir.exists():
+        if candidate.exists():
+            return candidate
+        mirrored_candidate = _mirror_dev_path(candidate)
+        return candidate if mirrored_candidate is not None and mirrored_candidate.exists() else None
+
+    actual_candidate = candidate
+    mirrored_candidate = _mirror_dev_path(candidate)
+    if mirrored_candidate is not None and mirrored_candidate.exists():
+        actual_candidate = mirrored_candidate
+
+    lookup_dir = serial_dir if serial_dir.exists() else mirrored_serial_dir
+    if lookup_dir is None or not actual_candidate.exists() or not lookup_dir.exists():
         return None
 
     try:
-        device_real = candidate.resolve()
+        device_real = actual_candidate.resolve()
     except FileNotFoundError:
         return None
 
-    for link in serial_dir.iterdir():
+    for link in lookup_dir.iterdir():
         try:
             if link.resolve() == device_real:
-                return link
+                return serial_dir / link.name
         except FileNotFoundError:
             continue
     return None
@@ -174,9 +204,13 @@ def resolve_active_serial_device_path(by_id_path: str) -> Path:
     candidate = Path(by_id_path).expanduser()
     if not str(candidate).startswith("/dev/serial/by-id/"):
         raise ValueError(f"Expected a /dev/serial/by-id path, got '{by_id_path}'.")
-    if not candidate.exists():
+    actual_candidate = candidate
+    mirrored_candidate = _mirror_dev_path(candidate)
+    if mirrored_candidate is not None and mirrored_candidate.exists():
+        actual_candidate = mirrored_candidate
+    elif not candidate.exists():
         raise FileNotFoundError(f"Serial device link '{candidate}' does not exist.")
-    resolved = candidate.resolve()
+    resolved = actual_candidate.resolve()
     if not resolved.exists():
         raise FileNotFoundError(f"Resolved serial device '{resolved}' does not exist.")
     return resolved

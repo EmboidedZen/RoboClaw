@@ -45,6 +45,7 @@ DOCKER_ARGS=(
   -e HOME=/roboclaw-instance/home
   -e ROBOCLAW_CONFIG_PATH=/roboclaw-instance/config.json
   -e ROBOCLAW_WORKSPACE_PATH=/roboclaw-instance/workspace
+  -e ROBOCLAW_HOST_DEV_ROOT="${ROBOCLAW_CONTAINER_HOST_DEV_ROOT}"
   -e ROBOCLAW_ROS2_NAMESPACE_PREFIX="$(ros2_namespace_prefix "${INSTANCE}" "${PROFILE}")"
   -e ROBOCLAW_ROS2_CONTROL_PYTHON="/usr/bin/python3"
   -e ROBOCLAW_ROS2_CONTROL_PYTHONPATH="${CONTROL_SOURCE_PYTHONPATH}"

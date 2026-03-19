@@ -15,6 +15,8 @@ from roboclaw.config.paths import (
     get_media_dir,
     get_runtime_subdir,
     get_workspace_path,
+    resolve_active_serial_device_path,
+    resolve_serial_by_id_path,
 )
 from roboclaw.config.schema import Config
 
@@ -84,3 +86,27 @@ def test_config_workspace_path_uses_environment_override(monkeypatch, tmp_path: 
     monkeypatch.setenv(WORKSPACE_PATH_ENV, str(env_path))
 
     assert config.workspace_path == env_path
+
+
+def test_resolve_serial_by_id_path_uses_host_dev_root_for_tty_candidate(
+    monkeypatch, tmp_path: Path
+) -> None:
+    host_dev = tmp_path / "host-dev"
+    (host_dev / "serial" / "by-id").mkdir(parents=True)
+    target = host_dev / "ttyACM0"
+    target.write_text("", encoding="utf-8")
+    (host_dev / "serial" / "by-id" / "usb-so101").symlink_to("../../ttyACM0")
+    monkeypatch.setenv("ROBOCLAW_HOST_DEV_ROOT", str(host_dev))
+
+    assert resolve_serial_by_id_path("/dev/ttyACM0") == Path("/dev/serial/by-id/usb-so101")
+
+
+def test_resolve_active_serial_device_path_uses_host_dev_root(monkeypatch, tmp_path: Path) -> None:
+    host_dev = tmp_path / "host-dev"
+    (host_dev / "serial" / "by-id").mkdir(parents=True)
+    target = host_dev / "ttyACM0"
+    target.write_text("", encoding="utf-8")
+    (host_dev / "serial" / "by-id" / "usb-so101").symlink_to("../../ttyACM0")
+    monkeypatch.setenv("ROBOCLAW_HOST_DEV_ROOT", str(host_dev))
+
+    assert resolve_active_serial_device_path("/dev/serial/by-id/usb-so101") == target

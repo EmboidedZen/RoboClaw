@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from roboclaw.config.paths import resolve_active_serial_device_path
+
 DEFAULT_BAUDRATE = 1_000_000
 
 
@@ -191,7 +193,15 @@ def probe_servo_register(
 ) -> dict[str, Any]:
     import scservo_sdk as scs
 
-    resolved = str(Path(device).expanduser().resolve())
+    candidate = Path(device).expanduser()
+    if str(candidate).startswith("/dev/serial/by-id/"):
+        try:
+            resolved_path = resolve_active_serial_device_path(str(candidate))
+        except FileNotFoundError:
+            resolved_path = candidate.resolve()
+    else:
+        resolved_path = candidate.resolve()
+    resolved = str(resolved_path)
     port_handler = scs.PortHandler(resolved)
     port_handler.baudrate = int(baudrate)
     port_handler.setPacketTimeout = _patch_set_packet_timeout.__get__(port_handler, scs.PortHandler)

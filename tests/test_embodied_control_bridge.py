@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -126,5 +127,58 @@ def test_probe_servo_register_uses_open_port_once(monkeypatch: pytest.MonkeyPatc
     assert events == [
         "open:1000000",
         "read:6:56:/dev/serial/by-id/usb-so101",
+        "close",
+    ]
+
+
+def test_probe_servo_register_uses_resolved_host_device_for_by_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    events: list[str] = []
+
+    class FakePortHandler:
+        def __init__(self, device: str) -> None:
+            self.device = device
+            self.baudrate = 0
+
+        def openPort(self) -> bool:  # noqa: N802
+            events.append(f"open:{self.baudrate}")
+            return True
+
+        def closePort(self) -> None:  # noqa: N802
+            events.append("close")
+
+        def getCurrentTime(self) -> float:  # noqa: N802
+            return 0.0
+
+    class FakePacketHandler:
+        def __init__(self, protocol_version: int) -> None:
+            self.protocol_version = protocol_version
+
+        def read2ByteTxRx(self, port_handler: FakePortHandler, servo_id: int, address: int) -> tuple[int, int, int]:  # noqa: N802
+            events.append(f"read:{servo_id}:{address}:{port_handler.device}")
+            return 2048, 0, 0
+
+        def getTxRxResult(self, result: int) -> str:  # noqa: N802
+            return f"result={result}"
+
+        def getRxPacketError(self, error: int) -> str:  # noqa: N802
+            return f"error={error}"
+
+    fake_sdk = types.SimpleNamespace(
+        COMM_SUCCESS=0,
+        PortHandler=FakePortHandler,
+        PacketHandler=FakePacketHandler,
+    )
+    monkeypatch.setitem(sys.modules, "scservo_sdk", fake_sdk)
+    monkeypatch.setattr(
+        "roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo.resolve_active_serial_device_path",
+        lambda device: Path("/roboclaw-host-dev/ttyACM0"),
+    )
+
+    result = probe_servo_register("/dev/serial/by-id/usb-so101", 6, 56, baudrate=1_000_000)
+
+    assert result["ok"] is True
+    assert events == [
+        "open:1000000",
+        "read:6:56:/roboclaw-host-dev/ttyACM0",
         "close",
     ]

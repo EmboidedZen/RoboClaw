@@ -576,12 +576,18 @@ class OnboardingController:
             probe = await self._run_tool(
                 "exec",
                 {
-                    "command": (
-                        "bash -lc 'for link in /dev/serial/by-id/*; do "
+                "command": (
+                        "bash -lc 'ROOT=\"${ROBOCLAW_HOST_DEV_ROOT:-/dev}\"; "
+                        "for link in /dev/serial/by-id/* \"$ROOT\"/serial/by-id/*; do "
                         "[ -e \"$link\" ] || continue; "
-                        "printf \"%s -> %s\\n\" \"$link\" \"$(readlink -f \"$link\")\"; "
-                        "done; "
-                        "ls -1 /dev/ttyACM* /dev/ttyUSB* 2>/dev/null'"
+                        "name=\"$link\"; "
+                        "case \"$link\" in \"$ROOT\"/*) name=\"/dev/${link#\"$ROOT\"/}\" ;; esac; "
+                        "resolved=\"$(readlink -f \"$link\" 2>/dev/null || true)\"; "
+                        "case \"$resolved\" in \"$ROOT\"/*) resolved=\"/dev/${resolved#\"$ROOT\"/}\" ;; esac; "
+                        "printf \"%s -> %s\\n\" \"$name\" \"$resolved\"; "
+                        "done | awk '!seen[$0]++'; "
+                        "ls -1 /dev/ttyACM* /dev/ttyUSB* \"$ROOT\"/ttyACM* \"$ROOT\"/ttyUSB* 2>/dev/null "
+                        "| sed \"s#^$ROOT#/dev#\" | awk '!seen[$0]++''"
                     )
                 },
                 on_progress=on_progress,
