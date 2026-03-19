@@ -41,7 +41,7 @@ class ProcedureExecutionResult:
 
 
 class ProcedureExecutor:
-    """Execute a small control bridge subset of embodied procedures."""
+    """Execute a small control-surface subset of embodied procedures."""
 
     def __init__(self, tools: ToolRegistry, runtime_manager: RuntimeManager):
         self._loader = AdapterLoader(tools)
@@ -226,7 +226,7 @@ class ProcedureExecutor:
             procedure=ProcedureKind.CALIBRATE,
             ok=False,
             message=(
-                f"Setup `{context.setup_id}` does not expose a control bridge calibration surface yet. "
+                f"Setup `{context.setup_id}` does not expose a control-surface calibration surface yet. "
                 "Try `connect`, `open gripper`, `debug`, or `reset`."
             ),
         )

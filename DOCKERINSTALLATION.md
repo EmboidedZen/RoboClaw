@@ -1,12 +1,72 @@
 # Docker Installation
 
-This file is retained only as a compatibility pointer.
+This guide is the step-by-step Docker installation path for RoboClaw.
 
-Use these current docs instead:
+If you already have the Docker setup working and want the day-to-day development
+and validation flow, use [DOCKER_WORKFLOW.md](./DOCKER_WORKFLOW.md).
 
-- [Docker Dev Workflow](./docs/docker-workflow.md): bind-mounted developer containers for fast iteration
-- [Docker Validation Workflow](./docs/docker-validation.md): immutable ROS2 matrix images for clean acceptance runs
+If you do not want Docker, use [INSTALLATION.md](./INSTALLATION.md).
 
-If you are an end user and do not want Docker, use:
+## 1. Prerequisites
 
-- [Native Installation](./INSTALLATION.md)
+Start from a clean clone:
+
+```bash
+git clone https://github.com/MINT-SJTU/RoboClaw.git
+cd RoboClaw
+```
+
+## 2. Build or Start a Dev Container
+
+The default Docker install path is the mutable dev container:
+
+```bash
+./scripts/docker/start-dev.sh devbox --profile ubuntu2404-ros2
+```
+
+If the image does not exist yet, this command builds it first and then starts
+the container.
+
+## 3. Enter the Container
+
+Open a shell inside the running container:
+
+```bash
+./scripts/docker/exec-dev.sh devbox --profile ubuntu2404-ros2
+```
+
+The RoboClaw source tree is mounted at `/roboclaw-source`, and the container is
+configured so host source edits are visible immediately.
+
+Docker instance state lives under:
+
+```text
+~/.roboclaw-docker/instances/<instance>--<profile>/
+```
+
+## 4. Verify RoboClaw Inside Docker
+
+Inside the container, confirm the CLI is available:
+
+```bash
+roboclaw --help
+```
+
+You should see commands such as `onboard`, `status`, `agent`, and `provider`.
+
+## 5. Verify the Bind-Mount Dev Path
+
+From the host repo, run:
+
+```bash
+./tests/test_docker_dev_bind_mount.sh
+```
+
+This verifies that the running dev container sees host source edits without a
+rebuild.
+
+## 6. Next Step
+
+Once Docker installation is working, continue with
+[DOCKER_WORKFLOW.md](./DOCKER_WORKFLOW.md) for the normal development,
+rebuild, and validation flow.

@@ -1,4 +1,4 @@
-"""Minimal SO101 Feetech runtime used by the ROS2 control bridge."""
+"""Minimal SO101 Feetech runtime used by the ROS2 control-surface server."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from roboclaw.config.paths import ensure_robot_calibration_file, resolve_active_serial_device_path
-from roboclaw.embodied.execution.integration.bridges.ros2.scservo import ServoCalibration
+from roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo import ServoCalibration
 
 PROTOCOL_VERSION = 0
 DEFAULT_BAUDRATE = 1_000_000
@@ -49,7 +49,7 @@ def _patch_packet_timeout(port_handler: Any, scs: Any) -> None:
 
 
 class So101FeetechRuntime:
-    """Direct SO101 runtime used by the control bridge."""
+    """Direct SO101 runtime used by the control-surface server."""
 
     def __init__(
         self,
@@ -284,7 +284,7 @@ class So101FeetechRuntime:
         if importlib.util.find_spec("scservo_sdk") is not None:
             return
         raise ModuleNotFoundError(
-            "scservo_sdk is unavailable. Install the RoboClaw SO101 Python dependency bundle before launching the ROS2 control bridge."
+            "scservo_sdk is unavailable. Install the RoboClaw SO101 Python dependency bundle before launching the ROS2 control-surface server."
         )
 
 

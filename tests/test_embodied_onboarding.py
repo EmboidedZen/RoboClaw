@@ -108,7 +108,7 @@ SO101_SERIAL_PROBE_OK = (
     "ROBOCLAW_SO101_SERIAL_PROBE resolved=/dev/ttyACM0 open=1 baud=1 result=0 error=0 value=2048\n"
     "ROBOCLAW_SO101_SERIAL_OK\n"
 )
-SO101_SERIAL_PROBE_MARKER = "roboclaw.embodied.execution.integration.bridges.ros2.scservo_probe"
+SO101_SERIAL_PROBE_MARKER = "roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo_probe"
 
 
 def test_onboarding_routes_chinese_real_robot_request(tmp_path: Path) -> None:
@@ -199,7 +199,7 @@ async def test_onboarding_generates_ready_setup_for_so101_with_camera(tmp_path: 
     assert "wrist_camera" in assembly_path.read_text(encoding="utf-8")
     deployment_text = deployment_path.read_text(encoding="utf-8")
     assert "/wrist_camera/image_raw" in deployment_text
-    assert "control_bridge" in deployment_text
+    assert "control_surface" in deployment_text
     assert "--profile-id so101_ros2_standard" in deployment_text
     assert "ROBOCLAW_ROS2_CONTROL_PYTHON" in deployment_text
     assert "ROBOCLAW_ROS2_CONTROL_PYTHONPATH" in deployment_text
@@ -238,7 +238,7 @@ async def test_onboarding_stops_at_ros2_prerequisite_gate(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_onboarding_blocks_unknown_control_bridge_profile_before_asset_generation(tmp_path: Path) -> None:
+async def test_onboarding_blocks_unknown_control_surface_profile_before_asset_generation(tmp_path: Path) -> None:
     _prepare_workspace(tmp_path)
     tools, _ = _build_tools(tmp_path, {})
     controller = OnboardingController(tmp_path, tools)
@@ -262,8 +262,8 @@ async def test_onboarding_blocks_unknown_control_bridge_profile_before_asset_gen
 
     state = session.metadata[SETUP_STATE_KEY]
     assert state["stage"] == "identify_setup_scope"
-    assert state["missing_facts"] == ["control_execution_profile"]
-    assert "does not have a framework ROS2 control bridge profile" in response.content
+    assert state["missing_facts"] == ["control_surface_profile"]
+    assert "does not have a framework ROS2 control surface profile" in response.content
     assert not (tmp_path / "embodied" / "assemblies" / "custom_setup.py").exists()
 
 

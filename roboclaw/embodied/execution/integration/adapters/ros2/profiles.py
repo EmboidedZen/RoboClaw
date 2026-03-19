@@ -1,4 +1,4 @@
-"""ROS2 embodiment profiles for control bridge execution."""
+"""ROS2 embodiment profiles for control-surface execution."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ class Ros2EmbodimentProfile:
     optional_topics: tuple[str, ...] = ("state", "health", "events", "joint_states")
     default_reset_mode: str = "home"
     auto_probe_serial: bool = False
-    control_bridge_module: str | None = None
+    control_surface_server_module: str | None = None
     calibration_robot_name: str | None = None
     control_default_calibration_id: str | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
@@ -154,7 +154,7 @@ class Ros2EmbodimentProfile:
                 name=item.service_name,
                 service_type=item.service_type,
                 path=f"{namespace}/{item.service_name}",
-                description=f"Control bridge primitive service for `{item.primitive_name}`.",
+                description=f"Control-surface primitive service for `{item.primitive_name}`.",
             )
             for item in self.primitive_services
         )
@@ -166,7 +166,7 @@ class Ros2EmbodimentProfile:
         robot_id: str,
         device_by_id: str,
     ) -> str | None:
-        if not self.control_bridge_module or not device_by_id.strip():
+        if not self.control_surface_server_module or not device_by_id.strip():
             return None
         ros_setup = (
             'if [ "${ROBOCLAW_ROS2_DISTRO:-none}" != "none" ] '
@@ -180,7 +180,7 @@ class Ros2EmbodimentProfile:
                 'PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}'
                 f'${{ROBOCLAW_ROS2_CONTROL_PYTHONPATH:-{_default_control_pythonpath()}}}"'
             ),
-            f"${{ROBOCLAW_ROS2_CONTROL_PYTHON:-/usr/bin/python3}} -m {self.control_bridge_module}",
+            f"${{ROBOCLAW_ROS2_CONTROL_PYTHON:-/usr/bin/python3}} -m {self.control_surface_server_module}",
             f"--namespace {shlex.quote(namespace)}",
             f"--profile-id {shlex.quote(self.id)}",
             f"--robot-id {shlex.quote(robot_id)}",
@@ -241,11 +241,11 @@ SO101_ROS2_PROFILE = Ros2EmbodimentProfile(
         ),
     ),
     auto_probe_serial=True,
-    control_bridge_module="roboclaw.embodied.execution.integration.bridges.ros2.control_bridge",
+    control_surface_server_module="roboclaw.embodied.execution.integration.control_surfaces.ros2.control_surface",
     calibration_robot_name="so101",
     control_default_calibration_id="so101_real",
     notes=(
-        "Control bridge profile for a ROS2-backed SO101 setup.",
+        "Control-surface profile for a ROS2-backed SO101 setup.",
         "Natural-language aliases stay in framework code so workspace assets remain setup-specific only.",
         "Primitive execution can fall back to profile-declared ROS2 services when no generic action surface exists.",
     ),

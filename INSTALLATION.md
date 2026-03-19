@@ -2,8 +2,7 @@
 
 This guide is the native host installation path. If you want Docker-based workflows, use:
 
-- [Docker Dev Workflow](./docs/docker-workflow.md)
-- [Docker Validation Workflow](./docs/docker-validation.md)
+- [Docker Installation](./DOCKERINSTALLATION.md)
 
 ## 1. Prerequisites
 

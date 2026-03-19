@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 
-from roboclaw.embodied.execution.integration.bridges.ros2.scservo import DEFAULT_BAUDRATE, probe_servo_register
+from roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo import DEFAULT_BAUDRATE, probe_servo_register
 
 SO101_GRIPPER_SERVO_ID = 6
 SO101_PRESENT_POSITION_ADDR = 56
@@ -14,7 +14,7 @@ SO101_PRESENT_POSITION_ADDR = 56
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 1:
-        print("usage: python -m roboclaw.embodied.execution.integration.bridges.ros2.scservo_probe <device-by-id>")
+        print("usage: python -m roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo_probe <device-by-id>")
         return 2
 
     if importlib.util.find_spec("scservo_sdk") is None:

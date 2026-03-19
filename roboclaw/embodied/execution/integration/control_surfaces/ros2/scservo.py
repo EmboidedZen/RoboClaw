@@ -1,4 +1,4 @@
-"""Minimal SCServo bus helpers for ROS2 control bridges."""
+"""Minimal SCServo bus helpers for ROS2 control-surface servers."""
 
 from __future__ import annotations
 

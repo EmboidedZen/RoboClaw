@@ -27,23 +27,19 @@ Right now, we are concentrated on the first plane.
 ```text
 Overall Data Flow
 
-User natural language
+RoboClaw Agent
   ↓
-RoboClaw Agent (understand intent, discover devices, guide configuration)
-  ↓
-Workspace (~/.roboclaw/workspace/embodied/) ← Agent generates setup files
-  ↓
-Catalog (merge built-in framework definitions + workspace user assets)
-  ↓
-Runtime Session (session management)
+Workspace / Catalog / Setup Resolution
   ↓
 Procedure (connect / calibrate / move / debug / reset step graph)
   ↓
-Adapter / Bridge (adapter binding + domain bridge)
+Runtime Adapter (active execution layer)
   ↓
-ROS2 (topics / services / actions)
+Control Surface (interface profile + runtime server)
   ↓
-Real embodiment / simulated embodiment
+Embodiment Runtime (hardware/sim-specific runtime)
+  ↓
+Real/Sim Embodiment
 ```
 
 Current embodiment coverage is tracked like this:
@@ -57,25 +53,20 @@ Current embodiment coverage is tracked like this:
 
 ## 📦 Installation
 
-RoboClaw supports three main ways to work with the codebase:
+### For Users
 
-- [Native Installation](./INSTALLATION.md): install RoboClaw directly on the host Python environment
-- [Docker Dev Workflow](./docs/docker-workflow.md): bind-mounted developer containers that run the latest host source without rebuilds
-- [Docker Validation Workflow](./docs/docker-validation.md): immutable ROS2 matrix images for clean acceptance runs
-
-Concrete SO101 acceptance helpers also live in the repo:
-
-- [`tests/test_native_so101_acceptance.sh`](./tests/test_native_so101_acceptance.sh)
-- [`tests/test_docker_dev_bind_mount.sh`](./tests/test_docker_dev_bind_mount.sh)
-- [`tests/test_matrix_so101_acceptance.sh`](./tests/test_matrix_so101_acceptance.sh)
-
-If you like using AI, you can simply ask your coding assistant:
+- `AI-assisted setup`: ask your coding assistant:
 
 ```text
 Help me install RoboClaw from https://github.com/MINT-SJTU/RoboClaw
 ```
 
-If you prefer step-by-step setup, start from [Native Installation](./INSTALLATION.md). For Docker, choose the dev or validation workflow docs above depending on whether you want fast iteration or clean acceptance.
+- [Non-Docker Installation](./INSTALLATION.md)
+- [Docker Installation](./DOCKERINSTALLATION.md)
+
+### For Developers
+
+- [Docker Workflow](./DOCKER_WORKFLOW.md)
 
 ## 📢 Community Co-Creation
 

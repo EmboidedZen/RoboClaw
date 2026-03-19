@@ -5,9 +5,9 @@ import types
 
 import pytest
 
-from roboclaw.embodied.execution.integration.bridges.ros2.control_bridge import Ros2ControlBridgeServer
-from roboclaw.embodied.execution.integration.bridges.ros2.scservo import ServoCalibration, probe_servo_register
-from roboclaw.embodied.execution.integration.bridges.ros2.so101_feetech import (
+from roboclaw.embodied.execution.integration.control_surfaces.ros2.control_surface import Ros2ControlSurfaceServer
+from roboclaw.embodied.execution.integration.control_surfaces.ros2.scservo import ServoCalibration, probe_servo_register
+from roboclaw.embodied.execution.integration.control_surfaces.ros2.so101_feetech import (
     ADDR_HOMING_OFFSET,
     ADDR_MAX_POSITION_LIMIT,
     ADDR_MIN_POSITION_LIMIT,
@@ -15,10 +15,10 @@ from roboclaw.embodied.execution.integration.bridges.ros2.so101_feetech import (
 )
 
 
-def test_control_bridge_server_rejects_unknown_robot_even_when_profile_matches() -> None:
-    server = Ros2ControlBridgeServer.__new__(Ros2ControlBridgeServer)
+def test_control_surface_server_rejects_unknown_robot_even_when_profile_matches() -> None:
+    server = Ros2ControlSurfaceServer.__new__(Ros2ControlSurfaceServer)
 
-    with pytest.raises(ValueError, match="Unknown control bridge ROS2 robot"):
+    with pytest.raises(ValueError, match="Unknown control-surface ROS2 robot"):
         server._build_runtime(
             profile_id="so101_ros2_standard",
             robot_id="custom_arm",
@@ -28,10 +28,10 @@ def test_control_bridge_server_rejects_unknown_robot_even_when_profile_matches()
         )
 
 
-def test_control_bridge_server_rejects_unknown_profile_even_when_robot_matches() -> None:
-    server = Ros2ControlBridgeServer.__new__(Ros2ControlBridgeServer)
+def test_control_surface_server_rejects_unknown_profile_even_when_robot_matches() -> None:
+    server = Ros2ControlSurfaceServer.__new__(Ros2ControlSurfaceServer)
 
-    with pytest.raises(ValueError, match="Unknown control bridge ROS2 profile"):
+    with pytest.raises(ValueError, match="Unknown control-surface ROS2 profile"):
         server._build_runtime(
             profile_id="custom_profile",
             robot_id="so101",
