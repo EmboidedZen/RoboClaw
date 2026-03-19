@@ -105,6 +105,73 @@ class ProcedureExecutor:
             self._adapters[context.runtime.id] = adapter
         return adapter
 
+    async def _best_effort_disconnect_before_calibration(self, context: ExecutionContext) -> None:
+        adapter = self._adapters.get(context.runtime.id)
+        if adapter is None:
+            return
+        disconnect = getattr(adapter, "disconnect", None)
+        if disconnect is None:
+            return
+        try:
+            await disconnect()
+        except Exception:
+            return
+        context.runtime.status = RuntimeStatus.DISCONNECTED
+        context.runtime.last_error = None
+
+    @staticmethod
+    def _is_serial_transport_error(message: str) -> bool:
+        lower = message.lower()
+        return any(
+            token in lower
+            for token in (
+                "there is no status packet",
+                "incorrect status packet",
+                "failed to open servo device",
+                "resource busy",
+                "permission denied",
+                "no such file or directory",
+            )
+        )
+
+    @classmethod
+    def _friendly_so101_calibration_error(
+        cls,
+        *,
+        action: str,
+        raw_error: Exception,
+        reconnect_allowed: bool,
+    ) -> str:
+        message = str(raw_error).strip()
+        lower = message.lower()
+        reconnect_hint = (
+            " If this setup was already working earlier, reply `connect` to reconnect it first, then reply `calibrate` again."
+            if reconnect_allowed
+            else ""
+        )
+        if "stable `/dev/serial/by-id/" in message or "/dev/serial/by-id/" in message and "configured" in lower:
+            return (
+                f"I could not find a stable SO101 USB/serial device, so {action}."
+                " Plug the controller into this machine and make sure the `/dev/serial/by-id/...` path is available,"
+                " then reply `calibrate` again."
+            )
+        if "failed to open servo device" in lower or "resource busy" in lower or "permission denied" in lower:
+            return (
+                f"I found the SO101 USB device, but I could not open it, so {action}."
+                " Please make sure the arm power is on, the USB/serial cable is firmly connected,"
+                " and no other program is using the arm."
+                " Then reply `calibrate` again."
+                + reconnect_hint
+            )
+        if cls._is_serial_transport_error(message):
+            return (
+                f"I could talk to the SO101 USB device, but the arm did not answer, so {action}."
+                " Please make sure the arm power is on and the USB/serial cable is firmly connected."
+                " If you just replugged the cable or powered the arm back on, reply `calibrate` again."
+                + reconnect_hint
+            )
+        return f"RoboClaw could not {action}. {message}"
+
     async def execute_connect(
         self,
         context: ExecutionContext,
@@ -367,7 +434,9 @@ class ProcedureExecutor:
                 overwrite_existing=existing.overwrite_existing,
             )
         overwrite_existing = calibration_path.exists()
+        monitor: Any | None = None
         try:
+            await self._best_effort_disconnect_before_calibration(context)
             monitor = self._build_so101_calibration_monitor(context)
             monitor.connect()
             monitor.prepare_manual_calibration()
@@ -382,15 +451,22 @@ class ProcedureExecutor:
                 overwrite_existing=overwrite_existing,
             )
         except Exception as exc:
+            if monitor is not None:
+                try:
+                    monitor.disconnect()
+                except Exception:
+                    pass
             context.runtime.status = RuntimeStatus.ERROR
             context.runtime.last_error = str(exc)
             return ProcedureExecutionResult(
                 procedure=ProcedureKind.CALIBRATE,
                 ok=False,
-                message=(
-                    "RoboClaw could not start the live SO101 calibration guide."
-                    f" {exc}"
+                message=self._friendly_so101_calibration_error(
+                    action="start the live SO101 calibration guide",
+                    raw_error=exc,
+                    reconnect_allowed=overwrite_existing,
                 ),
+                details={"raw_error": str(exc), "calibration_path": str(calibration_path)},
             )
         context.runtime.status = RuntimeStatus.DISCONNECTED
         context.runtime.last_error = None
@@ -475,7 +551,12 @@ class ProcedureExecutor:
             return ProcedureExecutionResult(
                 procedure=ProcedureKind.CALIBRATE,
                 ok=False,
-                message=f"RoboClaw could not start live SO101 calibration. {exc}",
+                message=self._friendly_so101_calibration_error(
+                    action="start live SO101 calibration",
+                    raw_error=exc,
+                    reconnect_allowed=flow.overwrite_existing,
+                ),
+                details={"raw_error": str(exc), "calibration_path": str(flow.calibration_path)},
             )
 
         context.runtime.status = RuntimeStatus.DISCONNECTED

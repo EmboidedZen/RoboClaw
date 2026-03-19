@@ -747,6 +747,78 @@ async def test_calibrate_allows_overwriting_existing_file(tmp_path: Path, monkey
     assert executor.calibration_phase(context.runtime.id) == "await_mid_pose_ack"
 
 
+@pytest.mark.asyncio
+async def test_calibrate_disconnects_active_runtime_before_monitor_setup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor, context, _ = _execution_context(
+        tmp_path,
+        calibration_exists=True,
+        runtime_status=RuntimeStatus.READY,
+    )
+    disconnect_calls: list[str] = []
+
+    class FakeAdapter:
+        async def disconnect(self):
+            disconnect_calls.append("disconnect")
+            return SimpleNamespace(ok=True)
+
+    class FakeMonitor:
+        def connect(self) -> None:
+            return None
+
+        def prepare_manual_calibration(self) -> None:
+            return None
+
+        def disconnect(self) -> None:
+            return None
+
+    executor._adapters[context.runtime.id] = FakeAdapter()
+    monkeypatch.setattr(executor, "_build_so101_calibration_monitor", lambda _: FakeMonitor())
+
+    prompt = await executor.execute_calibrate(context)
+
+    assert prompt.ok is False
+    assert disconnect_calls == ["disconnect"]
+    assert executor.calibration_phase(context.runtime.id) == "await_mid_pose_ack"
+
+
+@pytest.mark.asyncio
+async def test_calibration_start_failure_returns_friendly_retry_guidance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executor, context, _ = _execution_context(tmp_path, calibration_exists=True)
+
+    class FakeMonitor:
+        def connect(self) -> None:
+            return None
+
+        def prepare_manual_calibration(self) -> None:
+            return None
+
+        def capture_mid_pose(self) -> dict[str, int]:
+            raise RuntimeError("read 0x38 for servo 1 failed: [TxRxResult] There is no status packet!")
+
+        def disconnect(self) -> None:
+            return None
+
+    monkeypatch.setattr(executor, "_build_so101_calibration_monitor", lambda _: FakeMonitor())
+
+    prompt = await executor.execute_calibrate(context)
+    started = await executor.advance_calibration(context)
+
+    assert prompt.ok is False
+    assert started.ok is False
+    assert "the arm did not answer" in started.message
+    assert "reply `calibrate` again" in started.message
+    assert "reply `connect`" in started.message
+    assert "There is no status packet" not in started.message
+    assert started.details["raw_error"] == "read 0x38 for servo 1 failed: [TxRxResult] There is no status packet!"
+    assert executor.calibration_phase(context.runtime.id) is None
+
+
 def test_prepare_manual_calibration_resets_homing_and_limits() -> None:
     calls: list[tuple[str, int, int, int]] = []
 
