@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import mimetypes
 import shutil
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from roboclaw.embodied.execution.orchestration.dataset import EpisodeDataset
 from roboclaw.embodied.execution.orchestration.skills import SkillSpec
 
 if TYPE_CHECKING:
@@ -55,6 +56,17 @@ async def capture_sensors(
         captures.append({"sensor_id": result.sensor_id, "captured": result.captured, "media_type": result.media_type, "path_or_ref": path_or_ref})
     return captures
 
+
+def _timestamp_to_float(value: Any) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).timestamp()
+        except ValueError:
+            return 0.0
+    return 0.0
+
 async def collect_episodes(
     executor: ProcedureExecutor,
     context: ExecutionContext,
@@ -67,43 +79,68 @@ async def collect_episodes(
     from roboclaw.embodied.execution.orchestration.supervision import record_episode
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    dataset_path = output_dir / "dataset.jsonl"
+    dataset = EpisodeDataset(output_dir)
+    staging_dir = output_dir / ".staging"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
     completed = 0
     failed = 0
 
-    for episode_id in range(1, num_episodes + 1):
-        verdict = None
-        if supervisor is None:
-            reset_result = await executor.execute_reset(context)
-            record_data = (
-                await record_episode(executor, context, skill, episode_id, output_dir=output_dir, on_progress=on_progress)
-                if reset_result.ok
-                else {"episode_id": episode_id, "skill_name": skill.name, "steps": [], "ok": False}
-            )
-        else:
-            retries = 0
-            while True:
-                record_data, verdict = await supervisor.supervise_episode(
-                    executor, context, skill, episode_id, output_dir=output_dir, on_progress=on_progress
+    try:
+        for episode_id in range(1, num_episodes + 1):
+            dataset.begin_episode(episode_id)
+            verdict = None
+            if supervisor is None:
+                reset_result = await executor.execute_reset(context)
+                record_data = (
+                    await record_episode(executor, context, skill, episode_id, output_dir=staging_dir, on_progress=on_progress)
+                    if reset_result.ok
+                    else {"episode_id": episode_id, "skill_name": skill.name, "steps": [], "ok": False}
                 )
-                if not verdict.should_retry or retries >= 2:
-                    break
-                retries += 1
-                if on_progress is not None:
-                    await on_progress(f"Retrying episode {episode_id}/{num_episodes} ({retries}/2): {verdict.reason}.")
+            else:
+                retries = 0
+                while True:
+                    record_data, verdict = await supervisor.supervise_episode(
+                        executor, context, skill, episode_id, output_dir=staging_dir, on_progress=on_progress
+                    )
+                    if not verdict.should_retry or retries >= 2:
+                        break
+                    retries += 1
+                    if on_progress is not None:
+                        await on_progress(f"Retrying episode {episode_id}/{num_episodes} ({retries}/2): {verdict.reason}.")
 
-        record = EpisodeRecord(
-            episode_id=record_data["episode_id"],
-            skill_name=record_data["skill_name"],
-            steps=tuple(record_data["steps"]),
-            ok=bool(record_data["ok"]) if verdict is None else verdict.success,
-        )
-        with dataset_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
-        completed += int(record.ok)
-        failed += int(not record.ok)
-        if on_progress is not None:
-            await on_progress(f"Episode {episode_id}/{num_episodes} completed ({'ok' if record.ok else 'failed'}).")
+            record = EpisodeRecord(
+                episode_id=record_data["episode_id"],
+                skill_name=record_data["skill_name"],
+                steps=tuple(record_data["steps"]),
+                ok=bool(record_data["ok"]) if verdict is None else verdict.success,
+            )
+            for frame_index, step in enumerate(record.steps):
+                images = {
+                    str(sensor.get("sensor_id") or "image"): Path(path_or_ref)
+                    for sensor in step.get("sensors") or ()
+                    if sensor.get("captured")
+                    and str(sensor.get("media_type") or "").startswith("image/")
+                    and (path_or_ref := sensor.get("path_or_ref"))
+                    and Path(path_or_ref).is_file()
+                }
+                dataset.add_frame(
+                    episode_index=record.episode_id,
+                    frame_index=frame_index,
+                    timestamp=_timestamp_to_float(step.get("timestamp")),
+                    state=dict(step.get("state_after") or {}),
+                    action=dict(step.get("primitive") or {}),
+                    images=images or None,
+                )
+            completed += int(record.ok)
+            failed += int(not record.ok)
+            if on_progress is not None:
+                await on_progress(f"Episode {episode_id}/{num_episodes} completed ({'ok' if record.ok else 'failed'}).")
+    finally:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+
+    dataset_path = dataset.save(name=skill.name)
 
     message = f"Collected {completed} episodes of {skill.name}. Dataset saved."
     if failed:

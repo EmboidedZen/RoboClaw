@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from roboclaw.embodied.execution.orchestration.data_collection import collect_episodes
+from roboclaw.embodied.execution.orchestration.dataset import EpisodeDataset
 from roboclaw.embodied.execution.orchestration.skills import SkillSpec, SkillStep
 
 
@@ -30,37 +31,35 @@ class FakeExecutor:
 
 
 @pytest.mark.asyncio
-async def test_collect_episodes_writes_one_jsonl_line_per_episode(tmp_path: Path) -> None:
+async def test_collect_episodes_creates_structured_dataset(tmp_path: Path) -> None:
     result = await collect_episodes(
         FakeExecutor(),
-        SimpleNamespace(setup_id="demo"),
+        SimpleNamespace(setup_id="demo", assembly=SimpleNamespace(sensors=())),
         SkillSpec("pick_and_place", "Pick and place.", (SkillStep("gripper_open"), SkillStep("gripper_close"))),
         num_episodes=2,
         output_dir=tmp_path,
     )
 
-    dataset_path = tmp_path / "dataset.jsonl"
-    rows = [json.loads(line) for line in dataset_path.read_text(encoding="utf-8").splitlines()]
     assert result.ok is True
-    assert result.dataset_path == str(dataset_path)
-    assert len(rows) == 2
-    assert rows[0]["skill_name"] == "pick_and_place"
-    assert len(rows[0]["steps"]) == 2
-    assert rows[0]["steps"][0]["primitive"]["name"] == "gripper_open"
+    assert result.dataset_path == str(tmp_path)
+    info = EpisodeDataset.load_info(tmp_path)
+    assert info.num_episodes == 2
+    assert info.num_frames == 4  # 2 episodes x 2 steps
 
 
 @pytest.mark.asyncio
 async def test_collect_episodes_counts_failed_episodes(tmp_path: Path) -> None:
     result = await collect_episodes(
         FakeExecutor(fail_episode=2),
-        SimpleNamespace(setup_id="demo"),
+        SimpleNamespace(setup_id="demo", assembly=SimpleNamespace(sensors=())),
         SkillSpec("pick_and_place", "Pick and place.", (SkillStep("gripper_open"),)),
         num_episodes=2,
         output_dir=tmp_path,
     )
 
-    rows = [json.loads(line) for line in (tmp_path / "dataset.jsonl").read_text(encoding="utf-8").splitlines()]
     assert result.ok is False
     assert result.episodes_completed == 1
     assert result.episodes_failed == 1
-    assert rows[1]["ok"] is False
+    info = EpisodeDataset.load_info(tmp_path)
+    assert info.num_episodes == 2
+    assert info.num_frames == 2  # 2 episodes x 1 step each
