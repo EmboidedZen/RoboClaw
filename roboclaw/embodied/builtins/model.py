@@ -19,6 +19,8 @@ class BuiltinEmbodiment:
     id: str
     robot: RobotManifest
     ros2_profile: "Ros2EmbodimentProfile | None" = None
+    sim_model_path: str | None = None
+    sim_joint_mapping: dict[str, str] | None = None
     calibration_driver_id: str | None = None
     probe_provider_id: str | None = None
     onboarding_aliases: tuple[str, ...] = field(default_factory=tuple)
