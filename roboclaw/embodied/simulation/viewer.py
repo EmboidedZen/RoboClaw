@@ -173,9 +173,13 @@ class SimulationViewer:
             def _serve_index(self) -> None:
                 body = (
                     "<!doctype html><html><head><meta charset='utf-8'>"
-                    "<title>RoboClaw Simulation Viewer</title></head>"
-                    "<body><h1>RoboClaw Simulation Viewer</h1>"
-                    "<img src='/stream' alt='simulation stream'></body></html>"
+                    "<title>RoboClaw Simulation Viewer</title>"
+                    "<style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}"
+                    "img{max-width:100%;max-height:90vh}</style></head>"
+                    "<body><img id='v' src='/stream' alt='simulation stream'>"
+                    "<script>const img=document.getElementById('v');"
+                    "img.onerror=()=>{setTimeout(()=>{img.src='/stream?t='+Date.now()},1000)};"
+                    "</script></body></html>"
                 ).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
